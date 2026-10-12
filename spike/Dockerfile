@@ -14,3 +14,10 @@ RUN pip install --no-cache-dir "numpy<1.24" "opencv-python<4.10" google-genai \
 RUN pip install --no-cache-dir fastapi "uvicorn[standard]" python-multipart
 
 WORKDIR /work
+
+# ローカルの各フォルダをコンテナ内にコピー
+COPY ./spike ./spike
+COPY ./web ./web
+
+WORKDIR /spike
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]

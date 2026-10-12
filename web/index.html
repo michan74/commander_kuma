@@ -57,8 +57,6 @@
   #player { display: none; }
   #views { width: 100%; max-width: 900px; }
   #metro-view, #bear-view { text-align: center; padding-top: 10px; }
-  .big-num { font-size: 22px; color: #555; margin-bottom: 8px; }
-  .big-num span { color: #ff8c1a; font-weight: bold; font-size: 30px; }
   /* SVGに明示的な高さを与える(未指定だと150pxになり図形がはみ出てtransportに重なる)。
      preserveAspectRatio(meet)で図形はボックス内に収まるので下の要素と重ならない */
   #metro-svg, #bear-svg { width: 420px; max-width: 92%; display: block; margin: 0 auto; }
@@ -78,8 +76,20 @@
   @media (max-width: 700px) {
     main { padding: 8px; }
     #views { max-width: 100%; }
-    #metro-svg { width: 300px; height: 280px; }
-    #bear-svg { width: 300px; height: 300px; }
+    /* ヘッダーを1段に: タイトル文字を隠し ☰ [モード▼] [⚙] だけにする(調節の<strong>は残す) */
+    header > strong { display: none; }
+    /* 譜読みモードの楽譜はスマホでは横幅いっぱい(見やすさ優先) */
+    #score-wrap { max-width: 100%; }
+    /* 図形は端末幅で一度決まる固定サイズ。演奏中に大きさ・位置が変わらないようにする
+       (flexで伸縮させると小節や transport の変化でサイズが動き、集中を妨げるため) */
+    #metro-svg, #bear-svg { width: min(88vw, 360px); height: auto; }
+    /* ミニ楽譜は高さ固定。小節ごとに段の高さが変わっても下の図形・ボタンの位置がずれない */
+    #score-mini { height: 124px; overflow: hidden; }
+  }
+  /* 縦が狭い端末では transport を1行に(♩=136 と ▶⟲ を横並び)して高さを節約 */
+  @media (max-width: 700px) and (max-height: 720px) {
+    #transport { display: flex; align-items: center; justify-content: center; gap: 24px; margin-top: 6px; }
+    #transport .tbtns { margin-top: 0; }
   }
   /* 設定ポップアップ */
   .spopup { position: fixed; inset: 0; z-index: 40; background: #0003; display: flex;
@@ -100,6 +110,16 @@
   #editor label { font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
   #editor input { width: 120px; }
   #editor .row { display: flex; gap: 8px; }
+
+  /* 開始情報の確認ポップアップ(自律: くまが聞く) */
+  .sp2-card { background: #fff; border-radius: 18px; padding: 22px; width: 320px; max-width: 90vw;
+              box-shadow: 0 10px 40px #0005; display: flex; flex-direction: column; gap: 14px; }
+  .sp2-head { font-size: 19px; font-weight: bold; color: #ff8c1a; text-align: center; }
+  .sp2-note { font-size: 13px; color: #555; margin: 0; line-height: 1.6; text-align: center; }
+  .sp2-field { font-size: 14px; color: #222; display: flex; flex-direction: column; gap: 6px; }
+  .sp2-field > span { display: flex; align-items: center; gap: 8px; }
+  .sp2-field input[type=number] { width: 60px; padding: 6px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; }
+  .sp2-field select { padding: 6px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; }
 
   /* 調節(レビュー)モード */
   .ctrls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
@@ -177,7 +197,7 @@
     <button id="undo" class="btn sub" disabled>↶ 戻す</button>
     <span id="tool-hint" style="color:#ffb24d;font-size:12px"></span>
     <span style="color:#888;font-size:11px"><span style="color:#d500f9">紫破線</span>=AI自信なし(要確認)</span>
-    <button id="save" class="btn sub">💾 保存</button>
+    <button id="rename" class="btn sub">✏ 名前</button>
     <button id="to-play" class="btn">▶ この内容で練習する</button>
   </div>
 
@@ -217,11 +237,9 @@
       <canvas id="score-strip"></canvas>
     </div>
     <div id="metro-view" class="hidden">
-      <div class="big-num">小節 <span id="metro-num">-</span></div>
       <svg id="metro-svg" viewBox="0 0 420 380"></svg>
     </div>
     <div id="bear-view" class="hidden">
-      <div class="big-num">小節 <span id="bear-num">-</span></div>
       <svg id="bear-svg" viewBox="0 0 420 420"></svg>
     </div>
     <div id="transport" class="hidden">
@@ -234,6 +252,29 @@
   </div>
   <div id="player"></div>
 </main>
+
+<!-- 開始情報の確認(自律: 読み取りにくい時だけ くまが聞く) -->
+<div id="startpopup" class="modal hidden">
+  <div class="sp2-card">
+    <div class="sp2-head">🐻 正しく振るために確認させて！</div>
+    <p class="sp2-note" id="sp2-note">このページの冒頭、拍子が読み取りにくいところがありました。<br>開始の<b>拍子</b>と<b>テンポ</b>を教えてください。</p>
+    <label class="sp2-field">開始の拍子
+      <span><input id="st-num" type="number" min="1" value="4"> <b>/</b> <input id="st-den" type="number" min="1" value="4"></span>
+    </label>
+    <label class="sp2-field">テンポ
+      <span>
+        <select id="st-unit">
+          <option value="1">♩ = 4分</option>
+          <option value="2">2分音符</option>
+          <option value="0.5">♪ = 8分</option>
+          <option value="1.5">♩. = 付点4分</option>
+        </select>
+        = <input id="st-bpm" type="number" min="20" value="136">
+      </span>
+    </label>
+    <button id="st-ok" class="btn kp-ok">この内容で振る</button>
+  </div>
+</div>
 
 <!-- テンポ設定(テンキー) -->
 <div id="keypad" class="modal hidden">
@@ -294,6 +335,7 @@ let appMode = 'review', reviewTool = 'edit', mergeSel = -1, currentImage = '';  
 let undoStack = [];  // 調節の1手戻す用(分割・結合・拍子編集の直前スナップショット)
 let pausedAt = null, kpBuf = '', lastUI = '';  // 一時停止位置 / テンキー入力 / 再生UIの前回状態
 let lastStripKey = '';  // updateScoreMini の変化検知キー
+let startConfirmed = false;  // 開始の拍子・テンポをユーザーに確認済みか(自律: 低信頼なら聞く)
 
 function now() { return performance.now() / 1000; }
 const $ = id => document.getElementById(id);
@@ -376,6 +418,8 @@ function updateURL() {
 // mode: 'play' なら最初から再生画面へ(保存済みジョブ/曲の復元)。省略時は調節画面(新規解析)
 function initFromData(image, ov, mt, bt, mode) {
   overlay = ov; meter = mt; currentImage = image; undoStack = []; lastStripKey = '';
+  // 確認要否は mode でなく信頼度で決める(保存済み=補正で confidence=1 → 聞かない / 未保存の低信頼 → 聞く)
+  startConfirmed = false;
   // サンプル(ジョブ無し)は localStorage に保存した補正(拍子+枠)があれば復元
   if (!currentJob) {
     const saved = localStorage.getItem('kuma_save_' + image);
@@ -461,6 +505,7 @@ function undo() {
   renderPolys();
   updateUndoBtn();
   $('tool-hint').textContent = '1つ戻しました';
+  persist();
 }
 function updateUndoBtn() { const b = $('undo'); if (b) b.disabled = undoStack.length === 0; }
 
@@ -485,6 +530,7 @@ function rebuild(cells) {
   });
   mergeSel = -1;
   renderPolys();
+  persist();
 }
 // 画面座標 → #ov の viewBox 座標の x
 function svgX(e) {
@@ -536,6 +582,47 @@ function markMergeSel() {
   document.querySelectorAll('polygon[data-i]').forEach(p => p.classList.toggle('mergesel', +p.dataset.i === mergeSel));
 }
 
+// ---- 自律: 開始情報(拍子・テンポ)の確認 ----
+// 継続ページなどで開始の拍子が読めず低信頼のとき、くまが人に聞いてから振る(human-in-the-loop)
+function needStartConfirm() {
+  const m0 = meter.measures[0];
+  return !!(m0 && m0.confidence !== undefined && m0.confidence < 1);
+}
+function openStartPopup() {
+  const m0 = meter.measures[0] || { ts: '4/4' };
+  const [n, d] = m0.ts.split('+')[0].split('/');
+  $('st-num').value = parseInt(n) || 4;
+  $('st-den').value = parseInt(d) || 4;
+  $('st-unit').value = '1';
+  $('st-bpm').value = $('tempo').value;
+  $('startpopup').classList.remove('hidden');
+}
+// 確定した開始の拍子を、先頭から続く「同じ拍子だった小節(=誤って引き継がれた分)」に伝播
+function recascadeStart(ts, beats) {
+  const oldTs = meter.measures[0] ? meter.measures[0].ts : null;
+  for (let i = 0; i < meter.measures.length; i++) {
+    if (i === 0 || meter.measures[i].ts === oldTs) {
+      meter.measures[i].ts = ts;
+      meter.measures[i].beats = beats;
+      meter.measures[i].beat_groups = [];
+      meter.measures[i].confidence = 1;
+    } else break;  // 別の拍子が現れたら伝播を止める
+  }
+}
+$('st-ok').onclick = () => {
+  const n = parseInt($('st-num').value) || 4, d = parseInt($('st-den').value) || 4;
+  const ts = n + '/' + d;
+  const unit = parseFloat($('st-unit').value) || 1;  // 4分換算係数(2分=2, 8分=0.5, 付点4分=1.5)
+  const bpm = Math.max(20, Math.round((parseFloat($('st-bpm').value) || 136) * unit));
+  $('tempo').value = bpm; $('big-bpm').textContent = bpm;
+  recascadeStart(ts, beatsOf(ts));
+  startConfirmed = true;
+  $('startpopup').classList.add('hidden');
+  renderPolys();  // 低信頼(紫破線)の解除をラベルに反映
+  persist();      // 開始情報の確定も自動保存
+  enterPlay();    // 確認が済んだので再生へ(今度はガードを通過)
+};
+
 // ---- モード切替(調節 / 再生) ----
 function enterReview() {
   appMode = 'review';
@@ -551,6 +638,8 @@ function enterReview() {
 }
 function enterPlay() {
   if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
+  // 自律: 開始の拍子が低信頼(=読み取りにくい継続ページ等)なら、振る前に人へ確認する
+  if (!startConfirmed && needStartConfirm()) { openStartPopup(); return; }
   appMode = 'play';
   document.body.classList.remove('review-mode');
   $('review-ctrls').classList.add('hidden');
@@ -793,7 +882,6 @@ function updateMetro(phase) {
   }
   const m = $('metro-marker');
   if (m) m.setAttribute('transform', `translate(${pos[0]},${pos[1]})`);
-  $('metro-num').textContent = phase ? phase.k + 1 : '-';
 }
 
 // 指揮図形(参考: animato-jp.net)。b=打点(下, x:-1左〜1右, y=1下)、a=拍間の跳ね上げ頂点(apexは高い)
@@ -847,14 +935,28 @@ function updateBear(phase) {
   const fig = conductorFig(N);
   const B = fig.bottoms.map(toXY), A = fig.apex.map(toXY);
   const START = toXY([0, -0.9]);  // 始点=中央上(全拍子共通・固定)
-  if (bearSig !== 'on') {
-    bearSig = 'on';
-    // 重ね順: 胴体 → 左腕(静止) → コメットの尾 → 右腕 → 指揮棒 → 先端
+  if (bearSig !== 'fig' + N) {
+    bearSig = 'fig' + N;
+    // 軌道ガイド(薄い破線): 打点 B0→(apex)→B1→…→B0 を2次ベジェで。下のアニメ(bez)と同じ曲線
+    let d = `M ${B[0][0].toFixed(1)} ${B[0][1].toFixed(1)}`;
+    for (let j = 0; j < N; j++) {
+      const nj = (j + 1) % N;
+      const cx = 2 * A[j][0] - 0.5 * (B[j][0] + B[nj][0]);
+      const cy = 2 * A[j][1] - 0.5 * (B[j][1] + B[nj][1]);
+      d += ` Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${B[nj][0].toFixed(1)} ${B[nj][1].toFixed(1)}`;
+    }
+    // 打点の星(普段は薄く、到達した瞬間に下のアニメで光らせる)
+    const dots = B.map((p, j) =>
+      `<polygon class="fig-dot" data-j="${j}" points="${star(p[0], p[1], 9, 4, 5)}" fill="#ffd54a" opacity="0.3"/>`
+    ).join('');
+    // 重ね順: 胴体 → 左腕(静止) → 軌道ガイド → 打点星 → コメットの尾 → 右腕 → 指揮棒 → 先端
     // NOTE: 自己終了タグは直前の属性を必ず引用符で囲む("...."/>)。 opacity=0.8/> のように
     //   値と / が地続きだと /> が閉じ扱いされず、後続要素が全てこの要素の子になり不可視化する。
     svg.innerHTML =
       `<image href="images/bear-body.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
       `<image href="images/bear-arm-left.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
+      `<path id="fig-guide" d="${d}" fill="none" stroke="#bbb" stroke-width="2" stroke-dasharray="4 5" opacity="0.7"/>` +
+      dots +
       `<polyline id="fig-trail" fill="none" stroke="#ff8c1a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>` +
       `<g id="bear-arm-r"><image href="images/bear-arm-right.png" x="0" y="0" width="2048" height="2048"/></g>` +
       `<line id="bear-baton" stroke="#2b2b2b" stroke-width="2.6" stroke-linecap="round"/>` +
@@ -879,6 +981,17 @@ function updateBear(phase) {
   if (phase) trailBuf.push([H[0], H[1], nowt]); else trailBuf = [];
   while (trailBuf.length && nowt - trailBuf[0][2] > 0.78) trailBuf.shift();
   $('fig-trail').setAttribute('points', trailBuf.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
+  // 打点の星: 現在拍の打点に到達した瞬間(frac小)にパッと大きく光らせる
+  svg.querySelectorAll('.fig-dot').forEach(s => {
+    const sj = +s.dataset.j;
+    const lit = phase && phase.j === sj && phase.frac < 0.22;
+    s.setAttribute('fill', lit ? '#ff8c1a' : '#ffd54a');
+    s.setAttribute('opacity', lit ? '1' : '0.3');
+    if (lit) {
+      const c = B[sj];
+      s.setAttribute('transform', `translate(${c[0].toFixed(1)},${c[1].toFixed(1)}) scale(1.7) translate(${(-c[0]).toFixed(1)},${(-c[1]).toFixed(1)})`);
+    } else s.removeAttribute('transform');
+  });
   // くまは指揮棒を持ち、棒の先端が打点Hをなぞる。前足(握り)はHの少し下 = H + PAW_OFF。
   // 右腕: 肩(SHO)を支点に回転+伸縮させ、前足の先(スプライトの手先)を握り位置に乗せる。
   // 棒(と腕)が胴体と同色でも、暗い棒+白い先端で動きがはっきり見える。停止時は静止ポーズ。
@@ -898,7 +1011,6 @@ function updateBear(phase) {
     $('bear-arm-r').setAttribute('transform', BEAR_T);  // 静止ポーズ(腕を右へ下ろした素の絵)
     baton.style.display = tip.style.display = 'none';
   }
-  $('bear-num').textContent = phase && phase.k >= 0 ? phase.k + 1 : '-';
 }
 
 // metro/bear ビューで楽譜ミニストリップを描画(今の段をキャンバスに切り出しハイライト)
@@ -918,40 +1030,45 @@ function updateScoreMini(k, inPre) {
   if (!imgReady || key === lastStripKey) return;
   lastStripKey = key;
 
-  // 表示する段(staff)を決定: 前振り中は cueIndex の段を先読み
   const idx = k >= 0 ? k : cueIndex;
   const m0 = overlay.measures[idx] ?? overlay.measures[0];
   if (!m0) return;
-  // 現在 + 次の小節(同段)の最大2小節を表示
-  const rangeMs = [];
-  for (let i = idx; i <= Math.min(overlay.measures.length - 1, idx + 1); i++) {
-    if (i > idx && overlay.measures[i].staff !== m0.staff) break;
-    rangeMs.push(overlay.measures[i]);
-  }
-  if (!rangeMs.length) rangeMs.push(m0);
-  const allPts = rangeMs.flatMap(m => m.points);
-  const xs = allPts.map(p => p[0]), ys = allPts.map(p => p[1]);
-  // 上下の余白は段の高さに比例(音符・スラー・加線が五線の外にはみ出すぶんを含める)
-  const yrange = Math.max(...ys) - Math.min(...ys);
-  const padX = 8, padY = Math.round(yrange * 0.75);
-  const sx = Math.max(0, Math.min(...xs) - padX);
-  const sy = Math.max(0, Math.min(...ys) - padY);
-  const sw = Math.min(overlay.width - sx, Math.max(...xs) + padX - sx);
-  const sh = Math.min(overlay.height - sy, Math.max(...ys) + padY - sy);
+  // 現在小節の段の上下。上は詰め(別段の写り込み回避)、下は音符・スラーのぶん広め(段高比)
+  const ys0 = m0.points.map(p => p[1]);
+  const minY = Math.min(...ys0), maxY = Math.max(...ys0), yrange = maxY - minY;
+  const sy = Math.max(0, Math.round(minY - yrange * 0.12));
+  const shh = Math.min(overlay.height - sy, Math.round(maxY + yrange * 0.6) - sy);
+  // 元写真の傾きを打ち消す: 現在小節の上辺の角度ぶん、描画時に逆回転して水平化する
+  const [tl, tr] = [m0.points[0], m0.points[1]];
+  const theta = Math.atan2(tr[1] - tl[1], tr[0] - tl[0]);
 
+  // 音符の拡大率は「段高→固定表示高さ dispH」で決定(端末によらずほぼ一定=間延びしない)。
+  // 横は端末幅いっぱいぶんを現在小節中心に切り出す(PCは前後が多く、スマホは少なく写る)。
   const dpr = window.devicePixelRatio || 1;
   const W = Math.max(1, canvas.offsetWidth);
-  const scale = W / sw;
-  const H = Math.round(sh * scale);
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  canvas.style.height = H + 'px';
+  const dispH = window.matchMedia('(max-width: 700px)').matches ? 104 : 132;
+  const scale = dispH / shh;
+  let srcW = W / scale;
+  const mcx = m0.points.reduce((s, p) => s + p[0], 0) / 4;  // 現在小節の中心x
+  let sx;
+  if (srcW >= overlay.width) { srcW = overlay.width; sx = 0; }
+  else sx = Math.max(0, Math.min(mcx - srcW / 2, overlay.width - srcW));
+
+  canvas.width = W * dpr; canvas.height = dispH * dpr;
+  canvas.style.height = dispH + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.drawImage(scoreImg, sx, sy, sw, sh, 0, 0, W, H);
+  // キャンバス中心を軸に -theta 回転 → 傾いた譜面が水平に見える(ポリゴンも同じ変換下で整合)
+  ctx.translate(W / 2, dispH / 2);
+  ctx.rotate(-theta);
+  ctx.translate(-W / 2, -dispH / 2);
+  ctx.drawImage(scoreImg, sx, sy, srcW, shh, 0, 0, W, dispH);
 
-  const activeM = !inPre && k >= 0 ? overlay.measures[k] : null;
-  rangeMs.forEach(m => {
-    const isActive = activeM && m.index === activeM.index;
+  // 写っている小節に枠(現在小節は濃いオレンジ、他は薄く)
+  overlay.measures.forEach(m => {
+    const mxs = m.points.map(p => p[0]);
+    if (Math.max(...mxs) < sx || Math.min(...mxs) > sx + srcW) return;  // 範囲外は描かない
+    const isActive = !inPre && k >= 0 && m.index === overlay.measures[k].index;
     ctx.beginPath();
     m.points.forEach(([x, y], i) => {
       const px = (x - sx) * scale, py = (y - sy) * scale;
@@ -1085,8 +1202,9 @@ $('analyze').onclick = async () => {
     const res = await fetch('/process', { method: 'POST', body: fd });
     if (!res.ok) throw new Error((await res.json()).error || res.statusText);
     const data = await res.json();
-    currentJob = data.job; currentPiece = null; currentPieceName = '';
-    initFromData(data.image, data.overlay, data.meter, null);  // enterReview 内の updateURL で ?job= を設定
+    currentJob = data.job; currentPiece = null; currentPieceName = autoName();
+    initFromData(data.image, data.overlay, data.meter, null);
+    savePiece();  // 解析したら自動でライブラリに保存(未保存状態を作らない)
   } catch (e) {
     $('up-status').textContent = '解析に失敗: ' + e.message;
   } finally {
@@ -1288,6 +1406,7 @@ $('e-apply').onclick = () => {
   const poly = $('ov').querySelector(`polygon[data-i="${selected}"]`);
   if (poly) poly.classList.remove('lowconf');
   computeTimeline(); current = -1; refreshLabels();
+  persist();
   $('e-close').onclick();  // 反映したら閉じる
 };
 $('e-close').onclick = () => {
@@ -1316,35 +1435,41 @@ $('score-wrap').onclick = () => {
   window.addEventListener('mouseup', () => dragging = false);
 })();
 
-// 名前をつけて保存(補正 + 曲として保存)。次回ライブラリから再開できる
-$('save').onclick = async () => {
-  const body = { meter: meter, overlay: overlay };  // 拍子(meter)+枠(overlay)の両方
-  const note = (s) => { if ($('status')) $('status').textContent = s; $('tool-hint').textContent = s; };
+// ---- 自動保存(未保存状態を作らない。解析=即ライブラリ入り、補正は都度保存) ----
+function autoName() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `無題 ${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+// 補正(枠+拍子)を保存。実ジョブはサーバ(corrected)、サンプルは localStorage。連続操作はまとめる
+let saveTimer = null;
+function persist() {
+  const body = { meter, overlay };
+  if (!currentJob) { localStorage.setItem('kuma_save_' + currentImage, JSON.stringify(body)); return; }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    fetch('/save/' + currentJob, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+  }, 700);
+}
+// 曲(piece)として保存/更新。解析直後に自動で作り(仮名)、以降はリネームで名前を更新
+async function savePiece() {
+  if (!currentJob) { persist(); return; }  // サンプルは localStorage のみ
   try {
-    if (!currentJob) {  // サンプルはブラウザ保存のみ
-      localStorage.setItem('kuma_save_' + currentImage, JSON.stringify(body));
-      note('💾 保存しました(次回も反映)');
-      return;
-    }
-    // 1. このページの補正(枠+拍子)を保存
-    await fetch('/save/' + currentJob, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    });
-    // 2. 曲として名前をつけて保存(新規なら名前を聞く)
-    let name = currentPieceName;
-    if (!currentPiece) {
-      name = prompt('曲の名前をつけて保存', currentPieceName || '');
-      if (name === null) { note('💾 補正だけ保存しました'); return; }
-    }
+    await fetch('/save/' + currentJob, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meter, overlay }) });
     const res = await fetch('/piece', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: currentPiece, name: name || '(無題)', pages: [currentJob] }),
+      body: JSON.stringify({ id: currentPiece, name: currentPieceName || autoName(), pages: [currentJob] }),
     });
-    const d = await res.json();
-    currentPiece = d.id; currentPieceName = name || '(無題)';
+    currentPiece = (await res.json()).id;
     updateURL();
-    note(`💾 「${currentPieceName}」を保存しました`);
-  } catch (e) { note('保存に失敗: ' + e.message); }
+  } catch (e) { /* 失敗は次の操作で再試行 */ }
+}
+// 名前の変更(💾→✏)。いつでもリネームできる
+$('rename').onclick = async () => {
+  const name = prompt('曲の名前', currentPieceName || '');
+  if (name === null) return;
+  currentPieceName = name || currentPieceName || autoName();
+  await savePiece();
+  $('tool-hint').textContent = `✏ 「${currentPieceName}」に変更しました`;
 };
 
 ['loop', 'loopA', 'loopB'].forEach(id => $(id).oninput = $(id).onchange = updateLoopHighlight);
