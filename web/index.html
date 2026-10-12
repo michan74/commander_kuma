@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>指揮者っくま</title>
 <style>
-  body { font-family: system-ui, sans-serif; margin: 0; background: #fff; color: #222; }
+  /* カラーパレット(森×都市のモダン)。色変更は基本ここだけで済むよう変数化 */
+  :root {
+    --leaves: #506D2F; --bark: #2A2922; --marble: #F3EBDD; --brown: #7D5642;
+    --accent: #506D2F; --accent-dark: #3c531f; --accent-light: #6b8f42;
+    --review-bg: #e3ead5;  /* 調節中と分かる薄いleaves */
+    --bg: var(--marble); --text: var(--bark);  /* アプリ背景テーマ(切替可) */
+  }
+  body.theme-leaves { --bg: var(--leaves); --text: var(--marble); }  /* 森テーマ(暗) */
+  body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
   .hidden { display: none !important; }
 
   /* アップロード画面 */
@@ -13,32 +21,32 @@
             justify-content: center; gap: 20px; text-align: center; padding: 24px; }
   #upload h1 { margin: 0; font-size: 34px; }
   #upload p.sub { color: #666; margin: 0; }
-  .card { background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 28px 32px;
+  .card { background: var(--bark); border: 1px solid #333; border-radius: 12px; padding: 28px 32px;
           display: flex; flex-direction: column; gap: 16px; min-width: 320px; }
-  .btn { background: #ff8c1a; color: #111; border: none; border-radius: 8px; padding: 12px 18px;
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 12px 18px;
          font-size: 15px; font-weight: 700; cursor: pointer; }
   .btn.sub { background: #333; color: #eee; font-weight: 500; }
   .btn:disabled { opacity: .45; cursor: default; }
-  #up-status { color: #ffb24d; min-height: 20px; }
+  #up-status { color: var(--accent); min-height: 20px; }
   #library { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 720px; }
   #library h3 { width: 100%; margin: 4px 0; color: #666; font-size: 14px; }
-  .piece-card { background: #1b1b1b; border: 1px solid #333; border-radius: 8px; padding: 8px;
+  .piece-card { background: var(--bark); border: 1px solid #333; border-radius: 8px; padding: 8px;
                 width: 140px; cursor: pointer; text-align: center; }
-  .piece-card:hover { border-color: #ff8c1a; }
+  .piece-card:hover { border-color: var(--accent); }
   .piece-card img { width: 100%; height: 72px; object-fit: cover; border-radius: 4px; background: #333; }
   .piece-card .nm { display: block; font-size: 13px; margin-top: 6px; color: #eee;
                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .piece-card small { color: #888; }
 
   /* プレイヤー画面 */
-  header { padding: 10px 16px; background: #1b1b1b; color: #eee; position: sticky; top: 0; z-index: 10;
+  header { padding: 10px 16px; background: var(--bark); color: #eee; position: sticky; top: 0; z-index: 10;
            display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   header label { font-size: 13px; }
   input[type=number] { width: 66px; }
   #status { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
-  main { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: #fff; justify-content: center; }
+  main { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: transparent; justify-content: center; }
   /* 調節モード: 楽譜を中央寄せ + 背景オレンジ(調整中だと分かるように) */
-  body.review-mode main { justify-content: center; background: #ff9e30; }
+  body.review-mode main { justify-content: center; background: var(--review-bg); }
   body.review-mode #player { display: none; }
   body.review-mode #views { flex: 0 1 auto; max-width: 1000px; width: 100%; }
   body.review-mode #score-wrap { max-width: 100%; }
@@ -48,7 +56,7 @@
   /* NOTE: #ov 限定。汎用 svg/polygon にすると metro/bear の図形にも適用され、
      菱形がビューポート基準で絶対配置+オレンジ太線化して画面が崩れる */
   #ov { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-  #ov polygon { fill: transparent; stroke: rgba(255,160,0,.75); stroke-width: 6; cursor: pointer; }
+  #ov polygon { fill: transparent; stroke: rgba(80,109,47,.75); stroke-width: 6; cursor: pointer; }
   #ov polygon.inloop { fill: rgba(60,160,255,.16); }  /* ループ範囲 */
   #ov polygon.cue { stroke: #39d353; stroke-width: 9; }  /* 頭出しで選んだ開始小節 */
   #ov polygon.lowconf { stroke: #d500f9; stroke-width: 8; stroke-dasharray: 10 6; }  /* AIが自信なし=要確認 */
@@ -61,14 +69,15 @@
      preserveAspectRatio(meet)で図形はボックス内に収まるので下の要素と重ならない */
   #metro-svg, #bear-svg { width: 420px; max-width: 92%; display: block; margin: 0 auto; }
   #metro-svg { height: 340px; }
-  #bear-svg { height: 380px; }
+  /* しきくまの背景はアプリのテーマ(body)を使う。svgは透明にして「島」をなくす */
+  #bear-svg { height: 380px; background: transparent; }
   /* 楽譜ミニストリップ(metro/bear ビューで現在の段をハイライト表示) */
   #score-mini { padding: 0 8px 8px; }
   #score-strip { width: 100%; display: block; border-radius: 6px; }
   #strip-label { text-align: center; font-size: 14px; color: #666; min-height: 18px; margin-bottom: 3px; }
   /* ハンバーガーメニュー */
   #menu-btn { font-size: 20px; padding: 6px 10px; line-height: 1; }
-  #ham-menu { position: fixed; top: 56px; left: 0; z-index: 50; background: #1b1b1b;
+  #ham-menu { position: fixed; top: 56px; left: 0; z-index: 50; background: var(--bark);
               border: 1px solid #444; border-radius: 0 0 12px 0; padding: 10px;
               display: flex; flex-direction: column; gap: 8px; min-width: 180px;
               box-shadow: 4px 4px 16px #0006; }
@@ -99,14 +108,14 @@
   .sp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
   .sp-head strong { font-size: 16px; color: #333; }
   .sp-row { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #222; }
-  .sp-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #ff8c1a; }
+  .sp-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
   /* 再生モードのモード選択 */
   #view { font-size: 15px; padding: 7px 12px; border-radius: 8px; border: 1.5px solid #666;
           background: #2a2a2a; color: #eee; cursor: pointer; }
-  #editor { position: fixed; bottom: 16px; left: 16px; z-index: 20; background: #1b1b1b; color: #eee;
-            border: 1px solid #ffd54a; border-radius: 10px; padding: 14px 16px; display: flex;
+  #editor { position: fixed; bottom: 16px; left: 16px; z-index: 20; background: var(--bark); color: #eee;
+            border: 1px solid var(--accent-light); border-radius: 10px; padding: 14px 16px; display: flex;
             flex-direction: column; gap: 10px; min-width: 260px; box-shadow: 0 6px 24px #000a; }
-  #editor h3 { margin: 0; font-size: 15px; color: #ffd54a; cursor: move; user-select: none; }
+  #editor h3 { margin: 0; font-size: 15px; color: var(--accent-light); cursor: move; user-select: none; }
   #editor label { font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
   #editor input { width: 120px; }
   #editor .row { display: flex; gap: 8px; }
@@ -114,7 +123,7 @@
   /* 開始情報の確認ポップアップ(自律: くまが聞く) */
   .sp2-card { background: #fff; border-radius: 18px; padding: 22px; width: 320px; max-width: 90vw;
               box-shadow: 0 10px 40px #0005; display: flex; flex-direction: column; gap: 14px; }
-  .sp2-head { font-size: 19px; font-weight: bold; color: #ff8c1a; text-align: center; }
+  .sp2-head { font-size: 19px; font-weight: bold; color: var(--accent); text-align: center; }
   .sp2-note { font-size: 13px; color: #555; margin: 0; line-height: 1.6; text-align: center; }
   .sp2-field { font-size: 14px; color: #222; display: flex; flex-direction: column; gap: 6px; }
   .sp2-field > span { display: flex; align-items: center; gap: 8px; }
@@ -127,7 +136,7 @@
   .seg .tool { border-radius: 0; }
   .seg .tool:first-child { border-radius: 8px 0 0 8px; }
   .seg .tool:last-child { border-radius: 0 8px 8px 0; }
-  .tool.active { background: #ff8c1a; color: #111; font-weight: 700; }
+  .tool.active { background: var(--accent); color: #fff; font-weight: 700; }
   #ov polygon.mergesel { fill: rgba(60,160,255,.28); stroke: #3ca0ff; stroke-width: 9; }
   #rlabels text { paint-order: stroke; }
 
@@ -135,16 +144,16 @@
   #transport { text-align: center; margin: 14px auto 4px; }
   #transport .tempo-line { font-size: 30px; font-weight: bold; cursor: pointer; display: inline-block;
                            padding: 2px 10px; border-radius: 8px; }
-  #transport .tempo-line:hover { background: #fff3e0; }
-  #transport .tempo-line #big-bpm { color: #ff8c1a; }
+  #transport .tempo-line:hover { background: var(--review-bg); }
+  #transport .tempo-line #big-bpm { color: var(--accent); }
   #transport .tempo-line .pre-note { font-size: 15px; font-weight: 500; color: #888; margin-left: 10px; }
   #transport .tbtns { display: flex; gap: 20px; justify-content: center; align-items: center; margin-top: 10px; }
   .round { width: 72px; height: 72px; border-radius: 50%; border: none; cursor: pointer;
-           font-size: 30px; line-height: 1; color: #fff; background: #ff8c1a; box-shadow: 0 3px 10px #0002; }
+           font-size: 30px; line-height: 1; color: #fff; background: var(--accent); box-shadow: 0 3px 10px #0002; }
   .round:active { transform: translateY(1px); }
-  .round.playing { background: #ff6f00; }
-  .round.small { width: 56px; height: 56px; font-size: 24px; background: #fff; color: #ff8c1a;
-                 border: 3px solid #ff8c1a; box-shadow: none; }
+  .round.playing { background: var(--accent-dark); }
+  .round.small { width: 56px; height: 56px; font-size: 24px; background: #fff; color: var(--accent);
+                 border: 3px solid var(--accent); box-shadow: none; }
 
   /* テンポ設定(テンキーポップアップ) */
   .modal { position: fixed; inset: 0; z-index: 40; background: #0006; display: flex;
@@ -160,7 +169,7 @@
                     font-size: 24px; color: #333; cursor: pointer; box-shadow: 0 2px 5px #0001; }
   .kp-grid button:active { background: #f0e6d8; }
   .kp-ok { width: 100%; margin-top: 16px; padding: 14px; font-size: 20px;
-           background: linear-gradient(90deg, #ffd54a, #ff8c1a); }
+           background: linear-gradient(90deg, var(--accent-light), var(--accent)); }
 </style>
 </head>
 <body>
@@ -195,7 +204,7 @@
       <button id="tool-merge" class="btn sub tool">⇔ 結合</button>
     </div>
     <button id="undo" class="btn sub" disabled>↶ 戻す</button>
-    <span id="tool-hint" style="color:#ffb24d;font-size:12px"></span>
+    <span id="tool-hint" style="color:var(--accent);font-size:12px"></span>
     <span style="color:#888;font-size:11px"><span style="color:#d500f9">紫破線</span>=AI自信なし(要確認)</span>
     <button id="rename" class="btn sub">✏ 名前</button>
     <button id="to-play" class="btn">▶ この内容で練習する</button>
@@ -299,6 +308,7 @@
     </div>
     <label class="sp-row"><input id="pre" type="checkbox" checked> 前拍あり <input id="preN" type="number" value="4" readonly style="width:36px;border:none;background:transparent;color:#888">拍</label>
     <input id="snd" type="checkbox" class="hidden" checked>
+    <label class="sp-row"><input id="theme-toggle" type="checkbox"> 🌲 森の背景(暗め)</label>
     <label class="sp-row"><input id="loop" type="checkbox"> 🔁 ループ</label>
     <div class="sp-row" id="loop-range-row">
       <span style="color:#888;font-size:13px">小節</span>
@@ -336,6 +346,7 @@ let undoStack = [];  // 調節の1手戻す用(分割・結合・拍子編集の
 let pausedAt = null, kpBuf = '', lastUI = '';  // 一時停止位置 / テンキー入力 / 再生UIの前回状態
 let lastStripKey = '';  // updateScoreMini の変化検知キー
 let startConfirmed = false;  // 開始の拍子・テンポをユーザーに確認済みか(自律: 低信頼なら聞く)
+let theme = localStorage.getItem('kuma_theme') || 'marble';  // アプリ背景テーマ(marble=明 / leaves=森)
 
 function now() { return performance.now() / 1000; }
 const $ = id => document.getElementById(id);
@@ -865,14 +876,14 @@ function updateMetro(phase) {
       const a = v[j], b = v[(j + 1) % N], E = Math.max(1, Math.round(pulses[j] * 2));
       for (let e = 1; e < E; e++) {
         const f = e / E;
-        eighths += `<polygon points="${star(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 8, 3.5, 5)}" fill="#ffca3a" opacity="0.8"/>`;
+        eighths += `<polygon points="${star(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 8, 3.5, 5)}" fill="#9ab873" opacity="0.8"/>`;
       }
     }
     svg.innerHTML =
       (N > 1 ? `<polygon points="${v.map(p => p.join(',')).join(' ')}" fill="none" stroke="#555" stroke-width="2"/>` : '') +
       eighths +
-      v.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? 10 : 7}" fill="${i === 0 ? '#ff8c1a' : '#999'}"/>`).join('') +
-      `<g id="metro-marker"><polygon points="${star(0, 0, 20, 9, 6)}" fill="#ffd54a" stroke="#ff8c1a" stroke-width="2"/></g>`;
+      v.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? 10 : 7}" fill="${i === 0 ? '#506D2F' : '#999'}"/>`).join('') +
+      `<g id="metro-marker"><polygon points="${star(0, 0, 20, 9, 6)}" fill="#9ab873" stroke="#506D2F" stroke-width="2"/></g>`;
   }
   const v = metroV;
   let pos = v[0];
@@ -929,14 +940,26 @@ function prePhase(t) {
   }
   return null;
 }
+// アプリ背景テーマ(marble=明 / leaves=森)を適用。しきくまの色は updateBear が theme に連動して決める
+function applyTheme() {
+  document.body.classList.toggle('theme-leaves', theme === 'leaves');
+  const t = $('theme-toggle'); if (t) t.checked = theme === 'leaves';
+  bearSig = '';  // しきくまの色を背景に合わせ再生成させる
+}
 function updateBear(phase) {
   const svg = $('bear-svg');
   const N = phase ? Math.max(1, phase.pulses.length) : 4;
   const fig = conductorFig(N);
   const B = fig.bottoms.map(toXY), A = fig.apex.map(toXY);
   const START = toXY([0, -0.9]);  // 始点=中央上(全拍子共通・固定)
-  if (bearSig !== 'fig' + N) {
-    bearSig = 'fig' + N;
+  // テーマ(leaves=暗 / marble=明)に応じて指揮棒・軌道・星の色を切り替える
+  const dark = theme === 'leaves';
+  const batonC = dark ? '#fff' : '#2A2922';
+  const guideC = dark ? 'rgba(255,255,255,0.42)' : 'rgba(42,41,34,0.3)';
+  const dotOffC = dark ? '#ffd54a' : '#7D5642';
+  const tipC = dark ? '#ffd54a' : '#506D2F';
+  if (bearSig !== 'fig' + N + dark) {
+    bearSig = 'fig' + N + dark;
     // 軌道ガイド(薄い破線): 打点 B0→(apex)→B1→…→B0 を2次ベジェで。下のアニメ(bez)と同じ曲線
     let d = `M ${B[0][0].toFixed(1)} ${B[0][1].toFixed(1)}`;
     for (let j = 0; j < N; j++) {
@@ -945,22 +968,23 @@ function updateBear(phase) {
       const cy = 2 * A[j][1] - 0.5 * (B[j][1] + B[nj][1]);
       d += ` Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${B[nj][0].toFixed(1)} ${B[nj][1].toFixed(1)}`;
     }
-    // 打点の星(普段は薄く、到達した瞬間に下のアニメで光らせる)
+    // 打点の星(普段は薄く、到達した瞬間に下のアニメで発光フィルタで光らせる)
     const dots = B.map((p, j) =>
-      `<polygon class="fig-dot" data-j="${j}" points="${star(p[0], p[1], 9, 4, 5)}" fill="#ffd54a" opacity="0.3"/>`
+      `<polygon class="fig-dot" data-j="${j}" points="${star(p[0], p[1], 9, 4, 5)}" fill="${dotOffC}" opacity="0.35"/>`
     ).join('');
-    // 重ね順: 胴体 → 左腕(静止) → 軌道ガイド → 打点星 → コメットの尾 → 右腕 → 指揮棒 → 先端
+    // 重ね順: defs(発光) → 胴体 → 左腕 → 軌道ガイド → 打点星 → 尾 → 右腕 → 指揮棒 → 先端
     // NOTE: 自己終了タグは直前の属性を必ず引用符で囲む("...."/>)。 opacity=0.8/> のように
     //   値と / が地続きだと /> が閉じ扱いされず、後続要素が全てこの要素の子になり不可視化する。
     svg.innerHTML =
+      `<defs><filter id="dot-glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="4.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` +
       `<image href="images/bear-body.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
       `<image href="images/bear-arm-left.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
-      `<path id="fig-guide" d="${d}" fill="none" stroke="#bbb" stroke-width="2" stroke-dasharray="4 5" opacity="0.7"/>` +
+      `<path id="fig-guide" d="${d}" fill="none" stroke="${guideC}" stroke-width="2" stroke-dasharray="4 5"/>` +
       dots +
-      `<polyline id="fig-trail" fill="none" stroke="#ff8c1a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>` +
+      `<polyline id="fig-trail" fill="none" stroke="#ffb24d" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>` +
       `<g id="bear-arm-r"><image href="images/bear-arm-right.png" x="0" y="0" width="2048" height="2048"/></g>` +
-      `<line id="bear-baton" stroke="#2b2b2b" stroke-width="2.6" stroke-linecap="round"/>` +
-      `<circle id="bear-tip" r="3.2" fill="#fff" stroke="#2b2b2b" stroke-width="1.4"/>`;
+      `<line id="bear-baton" stroke="${batonC}" stroke-width="2.6" stroke-linecap="round"/>` +
+      `<circle id="bear-tip" r="3.6" fill="${tipC}" stroke="${batonC}" stroke-width="1.4"/>`;
   }
   // 星の位置。拍j内で 打点j→apex j→次の打点。前拍(phase.k<0)も同じ図形で準備を振る
   // テンポで直線⇄曲線をブレンド: 速い曲=直線的(角ばる) / 遅い曲=曲線的(滑らか)
@@ -981,16 +1005,18 @@ function updateBear(phase) {
   if (phase) trailBuf.push([H[0], H[1], nowt]); else trailBuf = [];
   while (trailBuf.length && nowt - trailBuf[0][2] > 0.78) trailBuf.shift();
   $('fig-trail').setAttribute('points', trailBuf.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
-  // 打点の星: 現在拍の打点に到達した瞬間(frac小)にパッと大きく光らせる
+  // 打点の星: 現在拍の打点に到達した瞬間(frac小)に、発光フィルタ+拡大でパッと光らせる
+  const dotLitC = dark ? '#fff' : '#506D2F';  // leaves背景=白く発光 / marble=濃い緑
   svg.querySelectorAll('.fig-dot').forEach(s => {
     const sj = +s.dataset.j;
     const lit = phase && phase.j === sj && phase.frac < 0.22;
-    s.setAttribute('fill', lit ? '#ff8c1a' : '#ffd54a');
-    s.setAttribute('opacity', lit ? '1' : '0.3');
+    s.setAttribute('fill', lit ? dotLitC : dotOffC);
+    s.setAttribute('opacity', lit ? '1' : '0.35');
     if (lit) {
       const c = B[sj];
-      s.setAttribute('transform', `translate(${c[0].toFixed(1)},${c[1].toFixed(1)}) scale(1.7) translate(${(-c[0]).toFixed(1)},${(-c[1]).toFixed(1)})`);
-    } else s.removeAttribute('transform');
+      s.setAttribute('filter', 'url(#dot-glow)');
+      s.setAttribute('transform', `translate(${c[0].toFixed(1)},${c[1].toFixed(1)}) scale(1.95) translate(${(-c[0]).toFixed(1)},${(-c[1]).toFixed(1)})`);
+    } else { s.removeAttribute('filter'); s.removeAttribute('transform'); }
   });
   // くまは指揮棒を持ち、棒の先端が打点Hをなぞる。前足(握り)はHの少し下 = H + PAW_OFF。
   // 右腕: 肩(SHO)を支点に回転+伸縮させ、前足の先(スプライトの手先)を握り位置に乗せる。
@@ -1076,7 +1102,7 @@ function updateScoreMini(k, inPre) {
     });
     ctx.closePath();
     if (isActive) { ctx.fillStyle = 'rgba(255,120,0,0.32)'; ctx.fill(); }
-    ctx.strokeStyle = isActive ? '#ff8c1a' : 'rgba(255,160,0,0.45)';
+    ctx.strokeStyle = isActive ? '#506D2F' : 'rgba(80,109,47,0.45)';
     ctx.lineWidth = isActive ? 3 : 1.5;
     ctx.stroke();
   });
@@ -1475,6 +1501,13 @@ $('rename').onclick = async () => {
 ['loop', 'loopA', 'loopB'].forEach(id => $(id).oninput = $(id).onchange = updateLoopHighlight);
 $('tempo').oninput = () => { computeTimeline(); current = -1; $('big-bpm').textContent = $('tempo').value; };
 $('view').onchange = () => { switchView($('view').value); updateURL(); };
+// アプリ背景テーマの切替(明るい ⇄ 森)
+$('theme-toggle').onclick = () => {
+  theme = $('theme-toggle').checked ? 'leaves' : 'marble';
+  localStorage.setItem('kuma_theme', theme);
+  applyTheme();
+  updateBear(null);
+};
 // 設定ポップアップ
 $('settings-btn').onclick = () => $('settings-popup').classList.remove('hidden');
 $('settings-close').onclick = () => $('settings-popup').classList.add('hidden');
@@ -1506,7 +1539,8 @@ window.addEventListener('keydown', e => {
   }
 });
 
-// 起動時: ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
+// 起動時: テーマ適用 + ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
+applyTheme();
 loadLibrary();
 const params = new URLSearchParams(location.search);
 // 再生ビュー(譜読み/メトロノーム/しきくま)を先に反映 → enterPlay の switchView で復元される
