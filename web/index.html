@@ -36,7 +36,7 @@
   header label { font-size: 13px; }
   input[type=number] { width: 66px; }
   #status { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
-  main { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: #fff; }
+  main { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: #fff; justify-content: center; }
   /* 調節モード: 楽譜を中央寄せ + 背景オレンジ(調整中だと分かるように) */
   body.review-mode main { justify-content: center; background: #ff9e30; }
   body.review-mode #player { display: none; }
@@ -45,19 +45,54 @@
   #score-wrap { position: relative; flex: 1; max-width: 70%; -webkit-user-select: none; user-select: none; }
   #score-wrap, #score, svg { -webkit-user-select: none; user-select: none; }
   #score { width: 100%; display: block; }
-  svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-  polygon { fill: transparent; stroke: rgba(255,160,0,.75); stroke-width: 6; cursor: pointer; }
-  polygon.inloop { fill: rgba(60,160,255,.16); }  /* ループ範囲 */
-  polygon.cue { stroke: #39d353; stroke-width: 9; }  /* 頭出しで選んだ開始小節 */
-  polygon.lowconf { stroke: #d500f9; stroke-width: 8; stroke-dasharray: 10 6; }  /* AIが自信なし=要確認 */
-  polygon.active { fill: rgba(255,60,60,.30); stroke: #ff2d2d; stroke-width: 9; }
-  polygon.sel { stroke: none; }  /* 選択小節はスポットライトで分かるので枠線なし=見やすく */
-  #player { position: sticky; top: 64px; }
-  #views { flex: 1; max-width: 70%; }
+  /* NOTE: #ov 限定。汎用 svg/polygon にすると metro/bear の図形にも適用され、
+     菱形がビューポート基準で絶対配置+オレンジ太線化して画面が崩れる */
+  #ov { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  #ov polygon { fill: transparent; stroke: rgba(255,160,0,.75); stroke-width: 6; cursor: pointer; }
+  #ov polygon.inloop { fill: rgba(60,160,255,.16); }  /* ループ範囲 */
+  #ov polygon.cue { stroke: #39d353; stroke-width: 9; }  /* 頭出しで選んだ開始小節 */
+  #ov polygon.lowconf { stroke: #d500f9; stroke-width: 8; stroke-dasharray: 10 6; }  /* AIが自信なし=要確認 */
+  #ov polygon.active { fill: rgba(255,60,60,.30); stroke: #ff2d2d; stroke-width: 9; }
+  #ov polygon.sel { stroke: none; }  /* 選択小節はスポットライトで分かるので枠線なし=見やすく */
+  #player { display: none; }
+  #views { width: 100%; max-width: 900px; }
   #metro-view, #bear-view { text-align: center; padding-top: 10px; }
   .big-num { font-size: 22px; color: #555; margin-bottom: 8px; }
   .big-num span { color: #ff8c1a; font-weight: bold; font-size: 30px; }
+  /* SVGに明示的な高さを与える(未指定だと150pxになり図形がはみ出てtransportに重なる)。
+     preserveAspectRatio(meet)で図形はボックス内に収まるので下の要素と重ならない */
   #metro-svg, #bear-svg { width: 420px; max-width: 92%; display: block; margin: 0 auto; }
+  #metro-svg { height: 340px; }
+  #bear-svg { height: 380px; }
+  /* 楽譜ミニストリップ(metro/bear ビューで現在の段をハイライト表示) */
+  #score-mini { padding: 0 8px 8px; }
+  #score-strip { width: 100%; display: block; border-radius: 6px; }
+  #strip-label { text-align: center; font-size: 14px; color: #666; min-height: 18px; margin-bottom: 3px; }
+  /* ハンバーガーメニュー */
+  #menu-btn { font-size: 20px; padding: 6px 10px; line-height: 1; }
+  #ham-menu { position: fixed; top: 56px; left: 0; z-index: 50; background: #1b1b1b;
+              border: 1px solid #444; border-radius: 0 0 12px 0; padding: 10px;
+              display: flex; flex-direction: column; gap: 8px; min-width: 180px;
+              box-shadow: 4px 4px 16px #0006; }
+  /* モバイル */
+  @media (max-width: 700px) {
+    main { padding: 8px; }
+    #views { max-width: 100%; }
+    #metro-svg { width: 300px; height: 280px; }
+    #bear-svg { width: 300px; height: 300px; }
+  }
+  /* 設定ポップアップ */
+  .spopup { position: fixed; inset: 0; z-index: 40; background: #0003; display: flex;
+            align-items: flex-start; justify-content: flex-end; padding: 60px 16px 0; }
+  .sp-card { background: #f5f3f0; border-radius: 14px; padding: 18px; min-width: 240px;
+             box-shadow: 0 8px 30px #0005; display: flex; flex-direction: column; gap: 14px; }
+  .sp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .sp-head strong { font-size: 16px; color: #333; }
+  .sp-row { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #222; }
+  .sp-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #ff8c1a; }
+  /* 再生モードのモード選択 */
+  #view { font-size: 15px; padding: 7px 12px; border-radius: 8px; border: 1.5px solid #666;
+          background: #2a2a2a; color: #eee; cursor: pointer; }
   #editor { position: fixed; bottom: 16px; left: 16px; z-index: 20; background: #1b1b1b; color: #eee;
             border: 1px solid #ffd54a; border-radius: 10px; padding: 14px 16px; display: flex;
             flex-direction: column; gap: 10px; min-width: 260px; box-shadow: 0 6px 24px #000a; }
@@ -73,7 +108,7 @@
   .seg .tool:first-child { border-radius: 8px 0 0 8px; }
   .seg .tool:last-child { border-radius: 0 8px 8px 0; }
   .tool.active { background: #ff8c1a; color: #111; font-weight: 700; }
-  polygon.mergesel { fill: rgba(60,160,255,.28); stroke: #3ca0ff; stroke-width: 9; }
+  #ov polygon.mergesel { fill: rgba(60,160,255,.28); stroke: #3ca0ff; stroke-width: 9; }
   #rlabels text { paint-order: stroke; }
 
   /* 再生トランスポート(大きな操作ボタン) */
@@ -126,9 +161,10 @@
 <!-- プレイヤー画面 -->
 <div id="app" class="hidden">
 <header>
+  <button id="menu-btn" class="btn sub" title="メニュー">☰</button>
   <strong>🐻 指揮者っくま</strong>
-  <button id="back" class="btn sub">← 別の写真</button>
-  <button id="save" class="btn sub">💾名前をつけて保存</button>
+  <!-- JS参照用(非表示) -->
+  <button id="back" class="hidden"></button>
 
   <!-- 調節(レビュー)モードのツールバー -->
   <div id="review-ctrls" class="ctrls">
@@ -141,46 +177,44 @@
     <button id="undo" class="btn sub" disabled>↶ 戻す</button>
     <span id="tool-hint" style="color:#ffb24d;font-size:12px"></span>
     <span style="color:#888;font-size:11px"><span style="color:#d500f9">紫破線</span>=AI自信なし(要確認)</span>
+    <button id="save" class="btn sub">💾 保存</button>
     <button id="to-play" class="btn">▶ この内容で練習する</button>
   </div>
 
   <!-- 再生モードのツールバー -->
   <div id="play-ctrls" class="ctrls hidden">
-    <button id="to-review" class="btn sub">← 調節に戻る</button>
-    <label>表示
-      <select id="view">
-        <option value="score">譜読み</option>
-        <option value="metro">メトロノーム</option>
-        <option value="bear">しきくま</option>
-      </select>
-    </label>
-    <label>再生
-      <select id="src">
-        <option value="solo">単体(練習)</option>
-        <option value="yt">YouTubeに同期</option>
-      </select>
-    </label>
-    <button id="restart" class="btn sub">⏮最初から</button>
-    <button id="play" class="btn sub">▶再生</button>
-    <label><input id="loop" type="checkbox"> 🔁ループ</label>
-    <label>小節 <input id="loopA" type="number" min="1" value="1" style="width:48px"> 〜 <input id="loopB" type="number" min="1" value="4" style="width:48px"></label>
-    <label>テンポ♩= <input id="tempo" type="number" value="136" step="1" min="20"></label>
-    <label>拍 <select id="mode"><option value="metro">楽譜のテンポ</option><option value="librosa">実拍(録音)</option></select></label>
-    <label>開始秒 <input id="start" type="number" value="5.2" step="0.1"></label>
-    <label>YouTube URL <input id="vid" type="text" value="https://www.youtube.com/watch?v=aLQ9iDHW_64" size="30"></label>
-    <button id="load" class="btn sub">動画読込</button>
-    <label><input id="snd" type="checkbox" checked> 🔊音</label>
-    <label><input id="pre" type="checkbox" checked> 前拍</label><input id="preN" type="number" value="4" readonly title="開始小節と同じ拍数" style="width:36px;background:#333;border:none;color:#aaa">拍
-    <button id="labelsBtn" class="btn sub">🏷判定を表示</button>
-    <span style="color:#888;font-size:11px">クリック=そこから再生 / ループON中はクリックで範囲</span>
-    <span id="status">—</span>
+    <select id="view">
+      <option value="score">譜読み</option>
+      <option value="metro">メトロノーム</option>
+      <option value="bear">しきくま</option>
+    </select>
+    <button id="settings-btn" class="btn sub" title="設定">⚙</button>
+    <!-- JS参照用(UI非表示) -->
+    <button id="play" class="hidden"></button>
+    <button id="restart" class="hidden"></button>
+    <button id="to-review" class="hidden"></button>
+    <input id="tempo" type="number" class="hidden" value="136" min="20">
+    <input id="start" type="number" class="hidden" value="0">
+    <select id="mode" class="hidden"><option value="metro">楽譜のテンポ</option></select>
+    <select id="src" class="hidden"><option value="solo">単体</option></select>
+    <span id="status" class="hidden">—</span>
   </div>
 </header>
+
+<!-- ハンバーガーメニュー -->
+<div id="ham-menu" class="ham-menu hidden">
+  <button id="ham-review" class="btn sub">← 調節に戻る</button>
+  <button id="ham-back" class="btn sub">← 別の写真</button>
+</div>
 <main>
   <div id="views">
     <div id="score-wrap">
       <img id="score" alt="楽譜">
       <svg id="ov" preserveAspectRatio="none"></svg>
+    </div>
+    <div id="score-mini" class="hidden">
+      <div id="strip-label"></div>
+      <canvas id="score-strip"></canvas>
     </div>
     <div id="metro-view" class="hidden">
       <div class="big-num">小節 <span id="metro-num">-</span></div>
@@ -215,6 +249,25 @@
   </div>
 </div>
 
+<!-- 設定ポップアップ -->
+<div id="settings-popup" class="spopup hidden">
+  <div class="sp-card">
+    <div class="sp-head">
+      <strong>設定</strong>
+      <button id="settings-close" class="kp-close" title="閉じる">×</button>
+    </div>
+    <label class="sp-row"><input id="pre" type="checkbox" checked> 前拍あり <input id="preN" type="number" value="4" readonly style="width:36px;border:none;background:transparent;color:#888">拍</label>
+    <input id="snd" type="checkbox" class="hidden" checked>
+    <label class="sp-row"><input id="loop" type="checkbox"> 🔁 ループ</label>
+    <div class="sp-row" id="loop-range-row">
+      <span style="color:#888;font-size:13px">小節</span>
+      <input id="loopA" type="number" min="1" value="1" style="width:48px">
+      <span style="color:#888">〜</span>
+      <input id="loopB" type="number" min="1" value="4" style="width:48px">
+    </div>
+  </div>
+</div>
+
 <div id="editor" class="hidden">
   <h3 id="e-title">小節を補正</h3>
   <label>拍子 <input id="e-ts" type="text" placeholder="4/4, 5/8 …"></label>
@@ -240,6 +293,7 @@ let metroV = [], metroSig = '';  // メトロノーム図形の頂点と形の�
 let appMode = 'review', reviewTool = 'edit', mergeSel = -1, currentImage = '';  // 調節/再生の切替
 let undoStack = [];  // 調節の1手戻す用(分割・結合・拍子編集の直前スナップショット)
 let pausedAt = null, kpBuf = '', lastUI = '';  // 一時停止位置 / テンキー入力 / 再生UIの前回状態
+let lastStripKey = '';  // updateScoreMini の変化検知キー
 
 function now() { return performance.now() / 1000; }
 const $ = id => document.getElementById(id);
@@ -309,8 +363,19 @@ function openEditor(i) {
 }
 
 // ---- 画面遷移 ----
-function initFromData(image, ov, mt, bt) {
-  overlay = ov; meter = mt; currentImage = image; undoStack = [];
+// 現在の状態(曲/ジョブ + 再生ビュー)を URL に反映。リロードで同じ画面・モードに復元できる
+function updateURL() {
+  const p = new URLSearchParams();
+  if (currentPiece) p.set('piece', currentPiece);
+  else if (currentJob) p.set('job', currentJob);
+  if (appMode === 'play') p.set('view', $('view').value);
+  const q = p.toString();
+  history.replaceState(null, '', q ? '?' + q : location.pathname);
+}
+
+// mode: 'play' なら最初から再生画面へ(保存済みジョブ/曲の復元)。省略時は調節画面(新規解析)
+function initFromData(image, ov, mt, bt, mode) {
+  overlay = ov; meter = mt; currentImage = image; undoStack = []; lastStripKey = '';
   // サンプル(ジョブ無し)は localStorage に保存した補正(拍子+枠)があれば復元
   if (!currentJob) {
     const saved = localStorage.getItem('kuma_save_' + image);
@@ -318,13 +383,12 @@ function initFromData(image, ov, mt, bt) {
   }
   beats = bt && bt.beat_times && bt.beat_times.length ? bt : { tempo: 136, beat_times: [] };
   $('score').src = image;
-  // 録音の実拍が無ければ「楽譜のテンポ」モード固定
-  $('mode').parentElement.style.display = beats.beat_times.length ? '' : 'none';
-  if (!beats.beat_times.length) $('mode').value = 'metro';
   $('upload').classList.add('hidden');
   $('app').classList.remove('hidden');
   if (!tickStarted) { tick(); tickStarted = true; }
-  enterReview();  // まず調節(レビュー)画面へ
+  // 新規解析は調節画面、保存済み(リロード復元)は確認済みとして再生画面へ
+  if (mode === 'play') { enterReview(); enterPlay(); }
+  else enterReview();
 }
 
 // index から拍子情報を引く(無ければ既定)
@@ -479,10 +543,11 @@ function enterReview() {
   playing = false; if ($('play')) $('play').textContent = '▶再生';
   $('review-ctrls').classList.remove('hidden');
   $('play-ctrls').classList.add('hidden');
-  $('view').value = 'score'; switchView('score');
+  switchView('score');  // 調節中は楽譜を表示(view値は再生に入ったとき復元するため変えない)
   renderPolys();
   setReviewTool('edit');
   updateUndoBtn();
+  updateURL();
 }
 function enterPlay() {
   if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
@@ -497,6 +562,7 @@ function enterPlay() {
   computeTimeline(); current = -1;
   switchView($('view').value);
   updatePlayUI();
+  updateURL();
 }
 function setReviewTool(t) {
   reviewTool = t; mergeSel = -1;
@@ -835,11 +901,77 @@ function updateBear(phase) {
   $('bear-num').textContent = phase && phase.k >= 0 ? phase.k + 1 : '-';
 }
 
+// metro/bear ビューで楽譜ミニストリップを描画(今の段をキャンバスに切り出しハイライト)
+// k: overlay.measures の配列インデックス(-1=開始前), inPre: 前振り中か
+function updateScoreMini(k, inPre) {
+  const canvas = $('score-strip');
+  if (!canvas || !overlay) return;
+  const scoreImg = $('score');
+  const imgReady = scoreImg.complete && scoreImg.naturalWidth > 0;
+  const key = `${k}|${inPre}`;
+  const label = $('strip-label');
+  if (label && key !== lastStripKey) {
+    label.textContent = inPre
+      ? `(前振り ${$('preN').value}拍)`
+      : k >= 0 ? `小節 ${k + 1} / ${overlay.measures.length}` : '';
+  }
+  if (!imgReady || key === lastStripKey) return;
+  lastStripKey = key;
+
+  // 表示する段(staff)を決定: 前振り中は cueIndex の段を先読み
+  const idx = k >= 0 ? k : cueIndex;
+  const m0 = overlay.measures[idx] ?? overlay.measures[0];
+  if (!m0) return;
+  // 現在 + 次の小節(同段)の最大2小節を表示
+  const rangeMs = [];
+  for (let i = idx; i <= Math.min(overlay.measures.length - 1, idx + 1); i++) {
+    if (i > idx && overlay.measures[i].staff !== m0.staff) break;
+    rangeMs.push(overlay.measures[i]);
+  }
+  if (!rangeMs.length) rangeMs.push(m0);
+  const allPts = rangeMs.flatMap(m => m.points);
+  const xs = allPts.map(p => p[0]), ys = allPts.map(p => p[1]);
+  // 上下の余白は段の高さに比例(音符・スラー・加線が五線の外にはみ出すぶんを含める)
+  const yrange = Math.max(...ys) - Math.min(...ys);
+  const padX = 8, padY = Math.round(yrange * 0.75);
+  const sx = Math.max(0, Math.min(...xs) - padX);
+  const sy = Math.max(0, Math.min(...ys) - padY);
+  const sw = Math.min(overlay.width - sx, Math.max(...xs) + padX - sx);
+  const sh = Math.min(overlay.height - sy, Math.max(...ys) + padY - sy);
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(1, canvas.offsetWidth);
+  const scale = W / sw;
+  const H = Math.round(sh * scale);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.drawImage(scoreImg, sx, sy, sw, sh, 0, 0, W, H);
+
+  const activeM = !inPre && k >= 0 ? overlay.measures[k] : null;
+  rangeMs.forEach(m => {
+    const isActive = activeM && m.index === activeM.index;
+    ctx.beginPath();
+    m.points.forEach(([x, y], i) => {
+      const px = (x - sx) * scale, py = (y - sy) * scale;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    if (isActive) { ctx.fillStyle = 'rgba(255,120,0,0.32)'; ctx.fill(); }
+    ctx.strokeStyle = isActive ? '#ff8c1a' : 'rgba(255,160,0,0.45)';
+    ctx.lineWidth = isActive ? 3 : 1.5;
+    ctx.stroke();
+  });
+}
+
 function switchView(v) {
   $('score-wrap').classList.toggle('hidden', v !== 'score');
   $('metro-view').classList.toggle('hidden', v !== 'metro');
   $('bear-view').classList.toggle('hidden', v !== 'bear');
   $('transport').classList.toggle('hidden', v === 'score');
+  $('score-mini').classList.toggle('hidden', v === 'score');
+  if (v !== 'score' && overlay) { lastStripKey = ''; updateScoreMini(current >= 0 ? current : cueIndex, false); }
   if (v === 'metro') { metroSig = ''; updateMetro(null); }
   if (v === 'bear') { bearSig = ''; trailBuf = []; updateBear(null); }
 }
@@ -881,6 +1013,7 @@ function tick() {
     const view = $('view').value;  // メトロノーム/しきくまの図形も同じ拍で動かす
     if (view === 'metro') updateMetro(inPre ? null : beatPhase(t));
     else if (view === 'bear') updateBear(inPre ? prePhase(t) : beatPhase(t));  // 前拍も指揮(始点→beat1の準備)
+    if (view === 'metro' || view === 'bear') updateScoreMini(inPre ? cueIndex : current, inPre);
     // 単体(練習)は Web Audio スケジューラで正確に予約(下の setInterval)。ここは YouTube同期用
     if (!solo) {
       if (t < lastT - 0.1) { nextClick = clicks.findIndex(c => c.t > t); if (nextClick < 0) nextClick = clicks.length; }
@@ -953,8 +1086,7 @@ $('analyze').onclick = async () => {
     if (!res.ok) throw new Error((await res.json()).error || res.statusText);
     const data = await res.json();
     currentJob = data.job; currentPiece = null; currentPieceName = '';
-    history.replaceState(null, '', '?job=' + data.job);  // 未保存でもリロード復元できるよう
-    initFromData(data.image, data.overlay, data.meter, null);
+    initFromData(data.image, data.overlay, data.meter, null);  // enterReview 内の updateURL で ?job= を設定
   } catch (e) {
     $('up-status').textContent = '解析に失敗: ' + e.message;
   } finally {
@@ -965,8 +1097,7 @@ $('analyze').onclick = async () => {
 $('sample').onclick = async () => {
   $('up-status').textContent = '読み込み中…';
   try {
-    currentJob = null;
-    history.replaceState(null, '', location.pathname);
+    currentJob = null; currentPiece = null;
     const [ov, mt, bt] = await Promise.all([
       fetch('overlay.json').then(r => r.json()),
       fetch('meter.json').then(r => r.json()),
@@ -983,7 +1114,7 @@ async function loadFromJob(job) {
     if (!res.ok) throw new Error('not found');
     const data = await res.json();
     currentJob = job; currentPiece = null;
-    initFromData(data.image, data.overlay, data.meter, null);
+    initFromData(data.image, data.overlay, data.meter, null, 'play');
   } catch (e) { /* ジョブが無ければアップロード画面のまま */ }
 }
 
@@ -1009,20 +1140,10 @@ async function loadPiece(pid) {
     currentPiece = pid; currentPieceName = d.name;
     const pg = d.pages[0];
     currentJob = (pg.image.match(/jobs\/([^/]+)/) || [])[1] || null;
-    initFromData(pg.image, pg.overlay, pg.meter, null);
-    history.replaceState(null, '', '?piece=' + pid);
+    initFromData(pg.image, pg.overlay, pg.meter, null, 'play');  // enterPlay 内の updateURL で ?piece=&view= を設定
   } catch (e) { $('up-status').textContent = '読み込み失敗: ' + e.message; }
 }
 
-$('back').onclick = () => {
-  playing = false; $('play').textContent = '▶再生';
-  document.body.classList.remove('review-mode');
-  currentJob = null; currentPiece = null; currentPieceName = '';
-  history.replaceState(null, '', location.pathname);
-  $('app').classList.add('hidden'); $('upload').classList.remove('hidden');
-  $('up-status').textContent = '';
-  loadLibrary();  // 一覧を最新に
-};
 
 // 小節k(通し番号)の拍の長さ配列(4分換算)
 function pulsesAt(k) {
@@ -1154,13 +1275,6 @@ $('kp-ok').onclick = () => {
   closeKeypad();
 };
 
-let ytReady = false;
-$('load').onclick = () => {
-  startAudio();
-  if (ytReady) makePlayer($('vid').value.trim());
-  else $('status').textContent = 'YouTube API 読込中…もう一度押してください';
-};
-
 // 補正パネル
 $('e-apply').onclick = () => {
   if (selected < 0) return;
@@ -1202,13 +1316,6 @@ $('score-wrap').onclick = () => {
   window.addEventListener('mouseup', () => dragging = false);
 })();
 
-// 判定表示モードのON/OFF
-$('labelsBtn').onclick = () => {
-  const g = $('labels');
-  const on = g.style.display === 'none';
-  g.style.display = on ? '' : 'none';
-  $('labelsBtn').textContent = on ? '🏷判定を隠す' : '🏷判定を表示';
-};
 // 名前をつけて保存(補正 + 曲として保存)。次回ライブラリから再開できる
 $('save').onclick = async () => {
   const body = { meter: meter, overlay: overlay };  // 拍子(meter)+枠(overlay)の両方
@@ -1235,17 +1342,31 @@ $('save').onclick = async () => {
     });
     const d = await res.json();
     currentPiece = d.id; currentPieceName = name || '(無題)';
-    history.replaceState(null, '', '?piece=' + currentPiece);
+    updateURL();
     note(`💾 「${currentPieceName}」を保存しました`);
   } catch (e) { note('保存に失敗: ' + e.message); }
 };
 
 ['loop', 'loopA', 'loopB'].forEach(id => $(id).oninput = $(id).onchange = updateLoopHighlight);
-['start', 'tempo'].forEach(id => $(id).oninput = () => { computeTimeline(); current = -1; $('big-bpm').textContent = $('tempo').value; });
-$('view').onchange = () => switchView($('view').value);
-['mode', 'src'].forEach(id => $(id).onchange = () => {
-  computeTimeline(); current = -1; playing = false; $('play').textContent = '▶再生';
-});
+$('tempo').oninput = () => { computeTimeline(); current = -1; $('big-bpm').textContent = $('tempo').value; };
+$('view').onchange = () => { switchView($('view').value); updateURL(); };
+// 設定ポップアップ
+$('settings-btn').onclick = () => $('settings-popup').classList.remove('hidden');
+$('settings-close').onclick = () => $('settings-popup').classList.add('hidden');
+$('settings-popup').onclick = (e) => { if (e.target.id === 'settings-popup') $('settings-popup').classList.add('hidden'); };
+// ハンバーガーメニュー
+$('menu-btn').onclick = (e) => { e.stopPropagation(); $('ham-menu').classList.toggle('hidden'); };
+document.addEventListener('click', () => $('ham-menu').classList.add('hidden'));
+$('ham-review').onclick = () => { enterReview(); };
+$('ham-back').onclick = () => {
+  playing = false;
+  document.body.classList.remove('review-mode');
+  currentJob = null; currentPiece = null; currentPieceName = '';
+  history.replaceState(null, '', location.pathname);
+  $('app').classList.add('hidden'); $('upload').classList.remove('hidden');
+  $('up-status').textContent = '';
+  loadLibrary();
+};
 
 // 調節: ツール切替 / モード切替 / 戻す
 ['edit', 'split', 'merge'].forEach(t => $('tool-' + t).onclick = () => setReviewTool(t));
@@ -1260,14 +1381,12 @@ window.addEventListener('keydown', e => {
   }
 });
 
-window.onYouTubeIframeAPIReady = () => { ytReady = true; };
-const s = document.createElement('script');
-s.src = 'https://www.youtube.com/iframe_api';
-document.head.appendChild(s);
-
 // 起動時: ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
 loadLibrary();
 const params = new URLSearchParams(location.search);
+// 再生ビュー(譜読み/メトロノーム/しきくま)を先に反映 → enterPlay の switchView で復元される
+const savedView = params.get('view');
+if (savedView && ['score', 'metro', 'bear'].includes(savedView)) $('view').value = savedView;
 if (params.get('piece')) loadPiece(params.get('piece'));
 else if (params.get('job')) loadFromJob(params.get('job'));
 </script>
