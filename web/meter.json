@@ -1,0 +1,441 @@
+{
+  "_note": "拍子=read_meter / 振り方(beat_groups)=read_beat_groups(楽譜＋指揮慣習)。2026-10-12。",
+  "measures": [
+    {
+      "index": 0,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 1,
+      "ts": "5/8",
+      "beats": 2.5,
+      "beat_groups": [
+        2,
+        3
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 2,
+      "ts": "3/4",
+      "beats": 3.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 3,
+      "ts": "5/8",
+      "beats": 2.5,
+      "beat_groups": [
+        2,
+        3
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 4,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 5,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 6,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 7,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 8,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 9,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 10,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 11,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 12,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 13,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        2,
+        3
+      ],
+      "confidence": 0.67
+    },
+    {
+      "index": 14,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 15,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 16,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 17,
+      "ts": "3/4",
+      "beats": 3.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 18,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 19,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 20,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 21,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 22,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 23,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 24,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 25,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 26,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 27,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 28,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 29,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 30,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    },
+    {
+      "index": 31,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 32,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 33,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 34,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 35,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 36,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 37,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 38,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 39,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 40,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 41,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 42,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 43,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 44,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 45,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 46,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 47,
+      "ts": "3/4",
+      "beats": 3.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 48,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 49,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 50,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 51,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 52,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 53,
+      "ts": "2/4",
+      "beats": 2.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 54,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 55,
+      "ts": "4/4+2/4",
+      "beats": 6.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 56,
+      "ts": "4/4",
+      "beats": 4.0,
+      "beat_groups": [],
+      "confidence": 1.0
+    },
+    {
+      "index": 57,
+      "ts": "5/4",
+      "beats": 5.0,
+      "beat_groups": [
+        3,
+        2
+      ],
+      "confidence": 1.0
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+<!doctype html><meta charset=utf-8><body style="background:#fff;margin:0">
+<svg id=s viewBox="0 0 420 420" width=560 height=560 xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const IMG=`<image href="images/bear-arm-right.png" x="0" y="0" width="2048" height="2048"/>`;
+document.getElementById('s').innerHTML =
+  `<rect width=420 height=420 fill="#eef"/>`+
+  // t1: 実際のarmT (rotate+非一様scale+負translate)
+  `<g transform="translate(305.2,196) rotate(132.85) scale(0.560,0.425) translate(-1087,-919)">${IMG}</g>`+
+  // 回転なし
+  `<g transform="translate(305.2,196) scale(0.560,0.425) translate(-1087,-919)">${IMG}</g>`+
+  // 一様scale+回転
+  `<g transform="translate(305.2,196) rotate(132.85) scale(0.5) translate(-1087,-919)">${IMG}</g>`+
+  `<circle cx=305.2 cy=196 r=4 fill="#00f"/>`;
+</script>

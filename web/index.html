@@ -1,0 +1,1150 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>指揮者っくま</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #fff; color: #222; }
+  .hidden { display: none !important; }
+
+  /* アップロード画面 */
+  #upload { min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 20px; text-align: center; padding: 24px; }
+  #upload h1 { margin: 0; font-size: 34px; }
+  #upload p.sub { color: #666; margin: 0; }
+  .card { background: #1b1b1b; border: 1px solid #333; border-radius: 12px; padding: 28px 32px;
+          display: flex; flex-direction: column; gap: 16px; min-width: 320px; }
+  .btn { background: #ff8c1a; color: #111; border: none; border-radius: 8px; padding: 12px 18px;
+         font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn.sub { background: #333; color: #eee; font-weight: 500; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  #up-status { color: #ffb24d; min-height: 20px; }
+  #library { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 720px; }
+  #library h3 { width: 100%; margin: 4px 0; color: #666; font-size: 14px; }
+  .piece-card { background: #1b1b1b; border: 1px solid #333; border-radius: 8px; padding: 8px;
+                width: 140px; cursor: pointer; text-align: center; }
+  .piece-card:hover { border-color: #ff8c1a; }
+  .piece-card img { width: 100%; height: 72px; object-fit: cover; border-radius: 4px; background: #333; }
+  .piece-card .nm { display: block; font-size: 13px; margin-top: 6px; color: #eee;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .piece-card small { color: #888; }
+
+  /* プレイヤー画面 */
+  header { padding: 10px 16px; background: #1b1b1b; color: #eee; position: sticky; top: 0; z-index: 10;
+           display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header label { font-size: 13px; }
+  input[type=number] { width: 66px; }
+  #status { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
+  main { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: #fff; }
+  /* 調節モード: 楽譜を中央寄せ + 背景オレンジ(調整中だと分かるように) */
+  body.review-mode main { justify-content: center; background: #ff9e30; }
+  body.review-mode #player { display: none; }
+  body.review-mode #views { flex: 0 1 auto; max-width: 1000px; width: 100%; }
+  body.review-mode #score-wrap { max-width: 100%; }
+  #score-wrap { position: relative; flex: 1; max-width: 70%; -webkit-user-select: none; user-select: none; }
+  #score-wrap, #score, svg { -webkit-user-select: none; user-select: none; }
+  #score { width: 100%; display: block; }
+  svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  polygon { fill: transparent; stroke: rgba(255,160,0,.75); stroke-width: 6; cursor: pointer; }
+  polygon.inloop { fill: rgba(60,160,255,.16); }  /* ループ範囲 */
+  polygon.cue { stroke: #39d353; stroke-width: 9; }  /* 頭出しで選んだ開始小節 */
+  polygon.lowconf { stroke: #d500f9; stroke-width: 8; stroke-dasharray: 10 6; }  /* AIが自信なし=要確認 */
+  polygon.active { fill: rgba(255,60,60,.30); stroke: #ff2d2d; stroke-width: 9; }
+  polygon.sel { stroke: none; }  /* 選択小節はスポットライトで分かるので枠線なし=見やすく */
+  #player { position: sticky; top: 64px; }
+  #views { flex: 1; max-width: 70%; }
+  #metro-view, #bear-view { text-align: center; padding-top: 10px; }
+  .big-num { font-size: 22px; color: #555; margin-bottom: 8px; }
+  .big-num span { color: #ff8c1a; font-weight: bold; font-size: 30px; }
+  #metro-svg, #bear-svg { width: 420px; max-width: 92%; display: block; margin: 0 auto; }
+  #metro-tempo { font-size: 30px; font-weight: bold; margin-top: 6px; cursor: pointer; display: inline-block; }
+  #metro-tempo span { color: #ff8c1a; }
+  #editor { position: fixed; bottom: 16px; left: 16px; z-index: 20; background: #1b1b1b; color: #eee;
+            border: 1px solid #ffd54a; border-radius: 10px; padding: 14px 16px; display: flex;
+            flex-direction: column; gap: 10px; min-width: 260px; box-shadow: 0 6px 24px #000a; }
+  #editor h3 { margin: 0; font-size: 15px; color: #ffd54a; cursor: move; user-select: none; }
+  #editor label { font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  #editor input { width: 120px; }
+  #editor .row { display: flex; gap: 8px; }
+
+  /* 調節(レビュー)モード */
+  .ctrls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .seg { display: flex; gap: 0; }
+  .seg .tool { border-radius: 0; }
+  .seg .tool:first-child { border-radius: 8px 0 0 8px; }
+  .seg .tool:last-child { border-radius: 0 8px 8px 0; }
+  .tool.active { background: #ff8c1a; color: #111; font-weight: 700; }
+  polygon.mergesel { fill: rgba(60,160,255,.28); stroke: #3ca0ff; stroke-width: 9; }
+  #rlabels text { paint-order: stroke; }
+</style>
+</head>
+<body>
+
+<!-- アップロード画面 -->
+<section id="upload">
+  <h1>🐻 指揮者っくま</h1>
+  <p class="sub">楽譜の写真を読み込むと、変拍子でも指揮(メトロノーム)してくれる練習アプリ</p>
+  <div class="card">
+    <input id="file" type="file" accept="image/*">
+    <button id="analyze" class="btn">この写真を解析する</button>
+    <button id="sample" class="btn sub">サンプル(DANCE MOVEMENTS)で試す</button>
+    <div id="up-status"></div>
+  </div>
+  <div id="library"></div>
+</section>
+
+<!-- プレイヤー画面 -->
+<div id="app" class="hidden">
+<header>
+  <strong>🐻 指揮者っくま</strong>
+  <button id="back" class="btn sub">← 別の写真</button>
+  <button id="save" class="btn sub">💾名前をつけて保存</button>
+
+  <!-- 調節(レビュー)モードのツールバー -->
+  <div id="review-ctrls" class="ctrls">
+    <strong>調節</strong>
+    <div class="seg">
+      <button id="tool-edit" class="btn sub tool active">✏ 拍子</button>
+      <button id="tool-split" class="btn sub tool">✂ 分割</button>
+      <button id="tool-merge" class="btn sub tool">⇔ 結合</button>
+    </div>
+    <button id="undo" class="btn sub" disabled>↶ 戻す</button>
+    <span id="tool-hint" style="color:#ffb24d;font-size:12px"></span>
+    <span style="color:#888;font-size:11px"><span style="color:#d500f9">紫破線</span>=AI自信なし(要確認)</span>
+    <button id="to-play" class="btn">▶ この内容で練習する</button>
+  </div>
+
+  <!-- 再生モードのツールバー -->
+  <div id="play-ctrls" class="ctrls hidden">
+    <button id="to-review" class="btn sub">← 調節に戻る</button>
+    <label>表示
+      <select id="view">
+        <option value="score">譜読み</option>
+        <option value="metro">メトロノーム</option>
+        <option value="bear">しきくま</option>
+      </select>
+    </label>
+    <label>再生
+      <select id="src">
+        <option value="solo">単体(練習)</option>
+        <option value="yt">YouTubeに同期</option>
+      </select>
+    </label>
+    <button id="restart" class="btn sub">⏮最初から</button>
+    <button id="play" class="btn sub">▶再生</button>
+    <label><input id="loop" type="checkbox"> 🔁ループ</label>
+    <label>小節 <input id="loopA" type="number" min="1" value="1" style="width:48px"> 〜 <input id="loopB" type="number" min="1" value="4" style="width:48px"></label>
+    <label>テンポ♩= <input id="tempo" type="number" value="136" step="1" min="20"></label>
+    <label>拍 <select id="mode"><option value="metro">楽譜のテンポ</option><option value="librosa">実拍(録音)</option></select></label>
+    <label>開始秒 <input id="start" type="number" value="5.2" step="0.1"></label>
+    <label>YouTube URL <input id="vid" type="text" value="https://www.youtube.com/watch?v=aLQ9iDHW_64" size="30"></label>
+    <button id="load" class="btn sub">動画読込</button>
+    <label><input id="snd" type="checkbox" checked> 🔊音</label>
+    <label><input id="pre" type="checkbox" checked> 前拍</label><input id="preN" type="number" value="4" readonly title="開始小節と同じ拍数" style="width:36px;background:#333;border:none;color:#aaa">拍
+    <button id="labelsBtn" class="btn sub">🏷判定を表示</button>
+    <span style="color:#888;font-size:11px">クリック=そこから再生 / ループON中はクリックで範囲</span>
+    <span id="status">—</span>
+  </div>
+</header>
+<main>
+  <div id="views">
+    <div id="score-wrap">
+      <img id="score" alt="楽譜">
+      <svg id="ov" preserveAspectRatio="none"></svg>
+    </div>
+    <div id="metro-view" class="hidden">
+      <div class="big-num">小節 <span id="metro-num">-</span></div>
+      <svg id="metro-svg" viewBox="0 0 420 380"></svg>
+      <div id="metro-tempo" title="クリックで変更">♩= <span id="metro-bpm">136</span></div>
+    </div>
+    <div id="bear-view" class="hidden">
+      <div class="big-num">小節 <span id="bear-num">-</span></div>
+      <svg id="bear-svg" viewBox="0 0 420 420"></svg>
+    </div>
+  </div>
+  <div id="player"></div>
+</main>
+
+<div id="editor" class="hidden">
+  <h3 id="e-title">小節を補正</h3>
+  <label>拍子 <input id="e-ts" type="text" placeholder="4/4, 5/8 …"></label>
+  <label>分け方 <input id="e-bg" type="text"></label>
+  <div style="font-size:11px;color:#999;max-width:230px">分け方 = 拍の区切り(数字の列)。4/4→1,1,1,1 / 5/8を2+3→2,3</div>
+  <div class="row">
+    <button id="e-apply" class="btn">この小節に反映</button>
+    <button id="e-close" class="btn sub">閉じる</button>
+  </div>
+</div>
+</div>
+
+<script>
+let overlay, beats, meter, measureStarts = [], player, current = -1, tickStarted = false;
+let currentJob = null;   // いま見ているページのジョブID
+let currentPiece = null, currentPieceName = '';  // いま開いている曲(名前付き保存)
+let actx, clicks = [], nextClick = 0, lastT = 0;
+let playing = false, playStart = 0, baseT = 0, selected = -1;
+let loopAnchor = null, clickTimer = null;  // ループ範囲をクリックで指定するため
+let playFrom = 0, preClicks = [], nextPre = 0;  // 前拍: playFrom から本編、その手前は前拍(小節は光らせない)
+let cueIndex = 0;  // 頭出しで選んだ開始小節(通し番号)
+let metroV = [], metroSig = '';  // メトロノーム図形の頂点と形のキー
+let appMode = 'review', reviewTool = 'edit', mergeSel = -1, currentImage = '';  // 調節/再生の切替
+let undoStack = [];  // 調節の1手戻す用(分割・結合・拍子編集の直前スナップショット)
+
+function now() { return performance.now() / 1000; }
+const $ = id => document.getElementById(id);
+
+// 拍子 → 4分音符換算の拍数(例 "5/8"→2.5, "4/4+2/4"→6)
+function beatsOf(ts) {
+  let t = 0;
+  ts.split('+').forEach(p => { const [n, d] = p.split('/').map(Number); if (n && d) t += n * 4 / d; });
+  return t || 4;
+}
+
+// 今その小節で実際に使われている「分け方」(数字の列)。空=自動をやめ、常に実値を見せる
+function effectiveGroups(info) {
+  if (info.beat_groups && info.beat_groups.length) return info.beat_groups;
+  const g = [];
+  info.ts.split('+').forEach(part => {
+    const num = parseInt(part.split('/')[0]);
+    for (let k = 0; k < num; k++) g.push(1);
+  });
+  return g.length ? g : [1];
+}
+
+// 各小節の上に今の判定(拍子 + 不規則なら分け方)を描く。判定表示モードで見せる
+function updateLabels() {
+  const g = $('labels');
+  if (!g) return;
+  g.innerHTML = overlay.measures.map(m => {
+    const info = meter.measures.find(x => x.index === m.index);
+    if (!info) return '';
+    const txt = info.ts + (info.beat_groups && info.beat_groups.length ? ' ' + info.beat_groups.join('+') : '');
+    const [x, y] = m.points[0];
+    return `<text x="${x + 6}" y="${y + 48}" font-size="46" font-weight="bold" fill="#00e5ff" ` +
+           `stroke="#000" stroke-width="3" paint-order="stroke">${txt}</text>`;
+  }).join('');
+}
+
+// 小節をダブルクリック → 編集パネル + その小節以外を暗く(スポットライト)
+function openEditor(i) {
+  selected = i;
+  const info = meter.measures.find(x => x.index === i) || { ts: '4/4', beat_groups: [] };
+  const conf = info.confidence !== undefined ? `  (AI信頼度 ${Math.round(info.confidence * 100)}%${info.confidence < 1 ? ' ⚠' : ''})` : '';
+  $('e-title').textContent = `小節 ${i + 1} を補正${conf}`;
+  $('e-ts').value = info.ts;
+  $('e-bg').value = effectiveGroups(info).join(',');
+  const ed = $('editor');
+  ed.classList.remove('hidden');
+  document.querySelectorAll('polygon[data-i]').forEach(p => p.classList.toggle('sel', +p.dataset.i === i));
+  const m = overlay.measures.find(x => x.index === i);
+  const pts = m.points.map(p => p.join(',')).join(' ');
+  // 大きい四角 − 選択小節 を evenodd でくり抜く = その小節以外だけ暗くなる。+ 白ハイライトで明るく
+  const hole = 'M ' + m.points.map(p => p.join(' ')).join(' L ') + ' Z';
+  const dpath = `M0 0 H${overlay.width} V${overlay.height} H0 Z ${hole}`;
+  $('spotlight').innerHTML =
+    `<path d="${dpath}" fill="#353535" opacity="0.82" fill-rule="evenodd" pointer-events="none"/>` +
+    `<polygon points="${pts}" fill="#fff" opacity="0.18" pointer-events="none"/>`;
+
+  // ポップアップをタップした小節の近く(基本は下、入らなければ上)に出す
+  const r = $('ov').querySelector(`polygon[data-i="${i}"]`).getBoundingClientRect();
+  const eh = ed.offsetHeight, ew = ed.offsetWidth;
+  let top = r.bottom + 28;  // 小節の少し下に
+  if (top + eh > window.innerHeight - 8) top = Math.max(8, r.top - eh - 12);
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - ew - 8));
+  ed.style.left = left + 'px';
+  ed.style.top = top + 'px';
+  ed.style.right = 'auto';
+  ed.style.bottom = 'auto';
+}
+
+// ---- 画面遷移 ----
+function initFromData(image, ov, mt, bt) {
+  overlay = ov; meter = mt; currentImage = image; undoStack = [];
+  // サンプル(ジョブ無し)は localStorage に保存した補正(拍子+枠)があれば復元
+  if (!currentJob) {
+    const saved = localStorage.getItem('kuma_save_' + image);
+    if (saved) { try { const s = JSON.parse(saved); if (s.meter) meter = s.meter; if (s.overlay) overlay = s.overlay; } catch (e) {} }
+  }
+  beats = bt && bt.beat_times && bt.beat_times.length ? bt : { tempo: 136, beat_times: [] };
+  $('score').src = image;
+  // 録音の実拍が無ければ「楽譜のテンポ」モード固定
+  $('mode').parentElement.style.display = beats.beat_times.length ? '' : 'none';
+  if (!beats.beat_times.length) $('mode').value = 'metro';
+  $('upload').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  if (!tickStarted) { tick(); tickStarted = true; }
+  enterReview();  // まず調節(レビュー)画面へ
+}
+
+// index から拍子情報を引く(無ければ既定)
+function meterFor(i) {
+  return meter.measures.find(x => x.index === i) || { ts: '4/4', beats: 4, beat_groups: [] };
+}
+
+// overlay 多角形 + ラベル + クリック操作を #ov に描き直す(分割・結合後にも呼ぶ)
+function renderPolys() {
+  const svg = $('ov');
+  svg.setAttribute('viewBox', `0 0 ${overlay.width} ${overlay.height}`);
+  const polys = overlay.measures.map(m => {
+    const info = meterFor(m.index);
+    const low = info.confidence !== undefined && info.confidence < 1.0;
+    return `<polygon data-i="${m.index}" class="${low ? 'lowconf' : ''}" points="${m.points.map(p => p.join(',')).join(' ')}"/>`;
+  }).join('');
+  svg.innerHTML = polys
+    + `<g id="labels" style="display:none"></g>`       // 再生側の判定表示(🏷トグル)
+    + `<g id="rlabels" class="${appMode === 'review' ? '' : 'hidden'}"></g>`  // 調節側の拍子ラベル(常時)
+    + `<g id="spotlight"></g>`;
+  svg.querySelectorAll('polygon[data-i]').forEach(p => {
+    p.onclick = (e) => onPoly(+p.dataset.i, p, e);
+  });
+  updateLabels();
+  renderReviewLabels();
+  updateLoopHighlight();
+}
+
+// 調節画面の拍子ラベル(各小節の上に大きく)
+function renderReviewLabels() {
+  const g = $('rlabels');
+  if (!g) return;
+  g.innerHTML = overlay.measures.map(m => {
+    const info = meterFor(m.index);
+    const [p0, p1] = [m.points[0], m.points[1]];
+    const mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2;
+    const bg = info.beat_groups && info.beat_groups.length ? ` (${info.beat_groups.join('+')})` : '';
+    return `<text x="${mx}" y="${my - 16}" text-anchor="middle" font-size="60" font-weight="bold" ` +
+           `fill="#111" stroke="#fff" stroke-width="7">${info.ts}${bg}</text>`;
+  }).join('');
+}
+
+function refreshLabels() { updateLabels(); renderReviewLabels(); }
+
+// 小節クリックの振り分け(調節=編集/分割/結合、再生=頭出し/ループ範囲)
+function onPoly(i, p, e) {
+  if (appMode === 'review') {
+    e.stopPropagation();  // score-wrap の「クリックで閉じる」に拾わせない
+    if (reviewTool === 'edit') openEditor(i);
+    else if (reviewTool === 'split') doSplit(i, e);
+    else if (reviewTool === 'merge') doMerge(i);
+  } else {
+    if ($('loop').checked) setLoopPoint(i);
+    else { setCue(i); if (isPlaying()) playFromOrdinal(cueIndex); }
+  }
+}
+
+// ---- 1手戻す(Undo) ----
+// 分割・結合・拍子編集の直前に overlay/meter のスナップショットを積む
+function pushUndo() {
+  undoStack.push({ ov: JSON.parse(JSON.stringify(overlay)), mt: JSON.parse(JSON.stringify(meter)) });
+  if (undoStack.length > 50) undoStack.shift();
+  updateUndoBtn();
+}
+function undo() {
+  if (!undoStack.length) { $('tool-hint').textContent = '戻せる操作がありません'; return; }
+  const s = undoStack.pop();
+  overlay = s.ov; meter = s.mt; mergeSel = -1;
+  if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
+  renderPolys();
+  updateUndoBtn();
+  $('tool-hint').textContent = '1つ戻しました';
+}
+function updateUndoBtn() { const b = $('undo'); if (b) b.disabled = undoStack.length === 0; }
+
+// ---- 分割・結合(フロントの多角形幾何で完結。index を再採番して overlay/meter を同期) ----
+// 現状を「枠(幾何)+拍子」をまとめた配列にする
+function cellsFromState() {
+  return overlay.measures.map(m => {
+    const mi = meterFor(m.index);
+    return {
+      staff: m.staff, points: m.points.map(pt => pt.slice()),
+      ts: mi.ts, beats: mi.beats, beat_groups: (mi.beat_groups || []).slice(), confidence: mi.confidence,
+    };
+  });
+}
+// 配列から overlay/meter を作り直して再描画(index = 並び順)
+function rebuild(cells) {
+  overlay.measures = cells.map((c, i) => ({ index: i, staff: c.staff, points: c.points }));
+  meter.measures = cells.map((c, i) => {
+    const o = { index: i, ts: c.ts, beats: c.beats, beat_groups: c.beat_groups };
+    if (c.confidence !== undefined) o.confidence = c.confidence;
+    return o;
+  });
+  mergeSel = -1;
+  renderPolys();
+}
+// 画面座標 → #ov の viewBox 座標の x
+function svgX(e) {
+  const svg = $('ov'), pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+}
+// クリックした x 位置で小節を2つに切る(上辺・下辺を同じ比で内分)
+// 拍子の割り当て: "4/4+2/4" のような複合枠(= 小節線の見落としで1枠に2小節)は
+//   左=先頭の拍子, 右=残りの拍子 に分け、beats も拍子から再計算する。
+//   単独拍子(+なし)の枠は推定不能なので両方に同じ拍子を複製し、人が直す前提。
+function doSplit(i, e) {
+  pushUndo();
+  const k = overlay.measures.findIndex(m => m.index === i);
+  const cells = cellsFromState();
+  const c = cells[k];
+  const [p0, p1, p2, p3] = c.points;  // TL, TR, BR, BL
+  let f = (svgX(e) - p0[0]) / ((p1[0] - p0[0]) || 1);
+  f = Math.max(0.12, Math.min(0.88, f));
+  const lerp = (a, b) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  const cTop = lerp(p0, p1), cBot = lerp(p3, p2);
+  const parts = c.ts.split('+');
+  const compound = parts.length > 1;              // 複合枠(見落とし)か
+  const lts = parts[0];                           // 左 = 先頭の拍子
+  const rts = compound ? parts.slice(1).join('+') : c.ts;  // 右 = 残り(単独枠は複製)
+  const bg = compound ? [] : c.beat_groups.slice();        // 分け方: 複合枠を割ったら各部は単独→クリア
+  const left  = { staff: c.staff, points: [p0, cTop, cBot, p3], ts: lts, beats: beatsOf(lts), beat_groups: bg.slice(), confidence: 1 };
+  const right = { staff: c.staff, points: [cTop, p1, p2, cBot], ts: rts, beats: beatsOf(rts), beat_groups: bg.slice(), confidence: 1 };
+  cells.splice(k, 1, left, right);
+  rebuild(cells);
+}
+// 隣り合う2小節(同じ段)を順にクリック → 1小節に結合
+function doMerge(i) {
+  if (mergeSel < 0 || i === mergeSel) { mergeSel = (i === mergeSel) ? -1 : i; markMergeSel(); return; }
+  const k0 = overlay.measures.findIndex(m => m.index === mergeSel);
+  const k = overlay.measures.findIndex(m => m.index === i);
+  if (Math.abs(k - k0) !== 1 || overlay.measures[k].staff !== overlay.measures[k0].staff) {
+    mergeSel = i; markMergeSel(); return;  // 隣接・同段でなければ選び直し
+  }
+  pushUndo();
+  const a = Math.min(k, k0), b = Math.max(k, k0);
+  const cells = cellsFromState();
+  const L = cells[a], R = cells[b];
+  const merged = { ...L, points: [L.points[0], R.points[1], R.points[2], L.points[3]], confidence: 1 };
+  cells.splice(a, 2, merged);  // 左の拍子を残す
+  rebuild(cells);
+}
+function markMergeSel() {
+  document.querySelectorAll('polygon[data-i]').forEach(p => p.classList.toggle('mergesel', +p.dataset.i === mergeSel));
+}
+
+// ---- モード切替(調節 / 再生) ----
+function enterReview() {
+  appMode = 'review';
+  document.body.classList.add('review-mode');  // 楽譜中央寄せ + 背景オレンジ
+  playing = false; if ($('play')) $('play').textContent = '▶再生';
+  $('review-ctrls').classList.remove('hidden');
+  $('play-ctrls').classList.add('hidden');
+  $('view').value = 'score'; switchView('score');
+  renderPolys();
+  setReviewTool('edit');
+  updateUndoBtn();
+}
+function enterPlay() {
+  if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
+  appMode = 'play';
+  document.body.classList.remove('review-mode');
+  $('review-ctrls').classList.add('hidden');
+  $('play-ctrls').classList.remove('hidden');
+  if ($('rlabels')) $('rlabels').classList.add('hidden');
+  cueIndex = 0;
+  $('preN').value = pulsesAt(0).length;
+  computeTimeline(); current = -1;
+}
+function setReviewTool(t) {
+  reviewTool = t; mergeSel = -1;
+  if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
+  markMergeSel();
+  ['edit', 'split', 'merge'].forEach(x => $('tool-' + x).classList.toggle('active', x === t));
+  const hints = {
+    edit: '小節をクリック → 拍子・分け方を直す',
+    split: '小節線が抜けた所をクリック → そこで2つに分割',
+    merge: '余分な線で割れた所: 隣り合う2小節を順にクリック → 結合',
+  };
+  $('tool-hint').textContent = hints[t];
+  $('ov').style.cursor = t === 'split' ? 'col-resize' : 'pointer';
+}
+
+// ---- 拍のタイムライン ----
+function computeTimeline() {
+  const start = parseFloat($('start').value) || 0;
+  const per = 4;  // meter に無い小節のフォールバック拍数
+  const mode = $('mode').value;
+  if (mode === 'metro') {
+    const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
+    const spb = 60 / tempo;
+    let acc = 0;
+    measureStarts = overlay.measures.map((m) => {
+      const t = start + acc * spb;
+      const info = meter.measures.find(x => x.index === m.index);
+      acc += info ? info.beats : per;
+      return t;
+    });
+  } else {
+    const bt = beats.beat_times;
+    let first = bt.findIndex(t => t >= start);
+    if (first < 0) first = 0;
+    measureStarts = overlay.measures.map((_, i) => {
+      const idx = first + i * per;
+      return idx < bt.length ? bt[idx] : null;
+    });
+  }
+  buildClicks();
+}
+
+// ---- メトロノーム音(Web Audio) ----
+// when(AudioContext時刻)を渡すと正確に予約。小節の頭は高い音でアクセント
+function click(accent, when) {
+  if (!actx) return;
+  const t = when != null ? when : actx.currentTime;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.frequency.value = accent ? 1600 : 1000;
+  o.connect(g); g.connect(actx.destination);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.35, t + 0.001);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  o.start(t); o.stop(t + 0.06);
+}
+
+// 再生時刻 ct(単体クロック)→ AudioContext の時刻に変換(先読み予約用)
+let audioStart = 0;
+function audioTime(ct) { return audioStart + (ct - baseT); }
+
+// 1小節を「拍(パルス)」の長さ(4分音符単位)の配列にする。
+//   beat_groups 有り(例 5/8=[2,3]) → グループごと。8分系で無し → 8分ごと。4分系 → 4分ごと。
+//   "4/4+2/4"(見落とし2小節) → 各拍子を順に連結
+function measurePulses(info) {
+  const pulses = [];
+  const single = info.ts.indexOf('+') < 0;
+  info.ts.split('+').forEach(part => {
+    const [num, den] = part.split('/').map(Number);
+    if (!num || !den) return;
+    if (single && info.beat_groups && info.beat_groups.length) {
+      info.beat_groups.forEach(g => pulses.push(g * 4 / den));  // グループ(分母音符の数)→4分換算
+    } else {
+      for (let k = 0; k < num; k++) pulses.push(4 / den);       // 分母音符ごと(4分系=1, 8分系=0.5)
+    }
+  });
+  return pulses.length ? pulses : [1];
+}
+
+function buildClicks() {
+  clicks = [];
+  if ($('mode').value === 'metro') {
+    const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
+    const spb = 60 / tempo;
+    overlay.measures.forEach((m, i) => {
+      const info = meter.measures.find(x => x.index === m.index);
+      const pulses = info ? measurePulses(info) : [1, 1, 1, 1];
+      let off = 0;
+      pulses.forEach((dur, k) => {
+        clicks.push({ t: measureStarts[i] + off * spb, accent: k === 0 });
+        off += dur;
+      });
+    });
+  } else {
+    const starts = new Set(measureStarts.filter(x => x !== null));
+    beats.beat_times.forEach(t => clicks.push({ t, accent: starts.has(t) }));
+  }
+  clicks.sort((a, b) => a.t - b.t);
+  nextClick = 0;
+}
+
+// ---- 小節ハイライト + 再生ループ ----
+// ループ範囲(小節の通し番号 0始まり)と、その開始/終了時刻
+function loopBounds() {
+  const n = overlay.measures.length;
+  let a = (parseInt($('loopA').value) || 1) - 1;
+  let b = (parseInt($('loopB').value) || n) - 1;
+  a = Math.max(0, Math.min(a, n - 1));
+  b = Math.max(a, Math.min(b, n - 1));
+  return [a, b];
+}
+function loopRange() {
+  const [a, b] = loopBounds();
+  const start = measureStarts[a] ?? 0;
+  let end;
+  if (b + 1 < measureStarts.length && measureStarts[b + 1] != null) {
+    end = measureStarts[b + 1];
+  } else {
+    const info = meter.measures.find(x => x.index === overlay.measures[b].index);
+    const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
+    end = (measureStarts[b] ?? 0) + (info ? info.beats : 4) * (60 / tempo);
+  }
+  return [start, end];
+}
+// 指定時刻へジャンプ(単体=内部クロック / YouTube=シーク)
+function jumpTo(time) {
+  current = -1;
+  playFrom = time; nextPre = preClicks.length;  // ループ戻りでは前拍なし・ハイライト抑制もなし
+  if ($('src').value === 'solo') { baseT = time; playStart = now(); audioStart = actx ? actx.currentTime : 0; }
+  else if (player && player.seekTo) player.seekTo(time, true);
+  nextClick = clicks.findIndex(c => c.t >= time);
+  if (nextClick < 0) nextClick = clicks.length;
+  lastT = time;
+}
+// 小節クリックでループ範囲を決める。1回目=始点、2回目=終点(小さい方→大きい方)
+function setLoopPoint(idx) {
+  const k = overlay.measures.findIndex(m => m.index === idx) + 1;  // 1始まりの通し番号
+  if (loopAnchor === null) {
+    loopAnchor = k;
+    $('loopA').value = k; $('loopB').value = k;
+  } else {
+    $('loopA').value = Math.min(loopAnchor, k);
+    $('loopB').value = Math.max(loopAnchor, k);
+    loopAnchor = null;
+  }
+  updateLoopHighlight();
+}
+
+function updateLoopHighlight() {
+  const on = $('loop').checked;
+  if (!on) loopAnchor = null;
+  const [a, b] = loopBounds();
+  document.querySelectorAll('polygon[data-i]').forEach(p => {
+    const k = overlay.measures.findIndex(m => m.index === +p.dataset.i);
+    p.classList.toggle('inloop', on && k >= a && k <= b);
+  });
+}
+
+// 時刻t での拍フェーズ: どの小節k・何拍目j・その拍内の進み frac(0〜1)
+function beatPhase(t) {
+  let k = -1;
+  for (let i = 0; i < measureStarts.length; i++) {
+    if (measureStarts[i] != null && measureStarts[i] <= t) k = i;
+    else if (measureStarts[i] != null) break;
+  }
+  if (k < 0) return null;
+  const info = meter.measures.find(x => x.index === overlay.measures[k].index);
+  const pulses = info ? measurePulses(info) : [1, 1, 1, 1];
+  const spb = 60 / Math.max(20, parseFloat($('tempo').value) || 136);
+  let off = measureStarts[k];
+  for (let j = 0; j < pulses.length; j++) {
+    const d = pulses[j] * spb;
+    if (t < off + d) return { k, pulses, j, frac: (t - off) / d };
+    off += d;
+  }
+  return { k, pulses, j: pulses.length - 1, frac: 1 };
+}
+
+// 1拍目を真ん中上に固定した正N角形(時計回り)。始点が常に同じ位置=見やすい
+function ngon(N, cx, cy, r) {
+  const p = [];
+  for (let i = 0; i < N; i++) {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / N;  // 上(頂点)から始める
+    p.push([+(cx + r * Math.cos(a)).toFixed(1), +(cy + r * Math.sin(a)).toFixed(1)]);
+  }
+  return p;
+}
+
+// 星型ポリゴンの points 文字列(cx,cy中心, n個の尖り)
+function star(cx, cy, outer, inner, n) {
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = -Math.PI / 2 + i * Math.PI / n;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`);
+  }
+  return pts.join(' ');
+}
+
+// メトロノーム図形(B案): 拍(グループ)を頂点に、8分を小さいドットで。星マーカーが拍で頂点へ
+function updateMetro(phase) {
+  const svg = $('metro-svg');
+  const pulses = phase ? phase.pulses : [1, 1, 1, 1];
+  const N = Math.max(1, pulses.length);
+  const sig = pulses.join(',');
+  if (sig !== metroSig) {
+    metroSig = sig;
+    const v = ngon(N, 210, 190, 130);
+    metroV = v;
+    let eighths = '';  // 8分の刻みを小さい星で
+    for (let j = 0; j < N; j++) {
+      const a = v[j], b = v[(j + 1) % N], E = Math.max(1, Math.round(pulses[j] * 2));
+      for (let e = 1; e < E; e++) {
+        const f = e / E;
+        eighths += `<polygon points="${star(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 8, 3.5, 5)}" fill="#ffca3a" opacity="0.8"/>`;
+      }
+    }
+    svg.innerHTML =
+      (N > 1 ? `<polygon points="${v.map(p => p.join(',')).join(' ')}" fill="none" stroke="#555" stroke-width="2"/>` : '') +
+      eighths +
+      v.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? 10 : 7}" fill="${i === 0 ? '#ff8c1a' : '#999'}"/>`).join('') +
+      `<g id="metro-marker"><polygon points="${star(0, 0, 20, 9, 6)}" fill="#ffd54a" stroke="#ff8c1a" stroke-width="2"/></g>`;
+  }
+  const v = metroV;
+  let pos = v[0];
+  if (phase && v.length) {
+    const j = phase.j, nj = (j + 1) % N;
+    pos = [v[j][0] + (v[nj][0] - v[j][0]) * phase.frac, v[j][1] + (v[nj][1] - v[j][1]) * phase.frac];
+  }
+  const m = $('metro-marker');
+  if (m) m.setAttribute('transform', `translate(${pos[0]},${pos[1]})`);
+  $('metro-num').textContent = phase ? phase.k + 1 : '-';
+  $('metro-bpm').textContent = $('tempo').value;
+}
+
+// 指揮図形(参考: animato-jp.net)。b=打点(下, x:-1左〜1右, y=1下)、a=拍間の跳ね上げ頂点(apexは高い)
+// 手は 打点へ下ろし → apex へ跳ね上げ → 次の打点、を繰り返す。a の最後は始点(中央上/2拍は左上)
+function conductorFig(N) {
+  const D = {
+    1: { b: [[0, 1]], a: [[0, -0.5]] },
+    2: { b: [[0, 1], [0, 1]], a: [[0.8, -0.55], [0, -0.9]] },
+    3: { b: [[0, 1], [0.6, 1], [-0.6, 1]], a: [[0.5, -0.6], [0, -0.6], [0, -0.9]] },
+    4: { b: [[0, 1], [-0.65, 1], [0, 1], [0.65, 1]], a: [[-0.5, -0.6], [0.1, -0.68], [0.5, -0.6], [0, -0.9]] },
+    5: { b: [[0, 1], [-0.6, 1], [0, 1], [0.5, 1], [0.85, 1]], a: [[-0.45, -0.55], [-0.1, -0.65], [0.3, -0.55], [0.7, -0.55], [0, -0.9]] },
+    6: { b: [[0, 1], [-0.5, 1], [-0.85, 1], [0, 1], [0.5, 1], [0.85, 1]], a: [[-0.3, -0.55], [-0.7, -0.55], [-0.1, -0.68], [0.3, -0.55], [0.7, -0.55], [0, -0.9]] },
+  };
+  if (D[N]) return { bottoms: D[N].b, apex: D[N].a };
+  const b = Array.from({ length: N }, (_, i) => [-1 + (N > 1 ? 2 * i / (N - 1) : 0), 1]);
+  const a = b.map((p, j) => j === N - 1 ? [0, -0.9] : [(b[j][0] + b[j + 1][0]) / 2, -0.6]);
+  return { bottoms: b, apex: a };
+}
+
+// しきくま: くま本体(胴体+左右の腕)を描き、右前足の先が打点をなぞる(打点へ下ろし→apexへ跳ね上げ)
+let bearSig = '', trailBuf = [];
+// 指揮図形エリア=くまの胸の前。START([0,-0.9])が上(始点)、打点([_,1])が下(お腹の高さ)
+const FIG = { cx: 205, cy: 232, sx: 72, sy: 72 };
+const toXY = p => [FIG.cx + p[0] * FIG.sx, FIG.cy + p[1] * FIG.sy];
+// NOTE: 画像は 2048x2048 の同一キャンバスに配置された透過PNG(胴体/右腕/左腕)。採寸値:
+//   胴体bbox x[653,1073] y[552,1352] 中心(863,952) / 右腕 肩(1087,919)→手先(1350,930) / 左腕 肩(690,939)
+// BEAR_T はスプライト座標→SVG(420)の配置変換。胴体中心(863,952)をSVG(210,210)へ、scale=0.425。
+const BEAR_T = 'translate(-156.8,-194.6) scale(0.425)';
+const SHO = [305.2, 196.0];   // 右肩(world) = BEAR_T を右腕アンカー(1087,919)に適用した点
+const ARM_PIV = [1087, 919];  // 右腕スプライトの肩アンカー(=回転の支点)
+const ARM_LEN = 263;          // 右腕スプライト 肩→手先 の長さ(px)
+const ARM_TH = 0.425;         // 腕の太さ方向scale(=BEAR_T。伸縮しても太さは一定に保つ)
+
+// 前拍中の指揮フェーズ(開始小節と同じ拍数で、始点→beat1 の準備を振る)。k=-1
+function prePhase(t) {
+  const info = meter.measures.find(x => x.index === overlay.measures[cueIndex].index);
+  const pulses = info ? measurePulses(info) : [1, 1, 1, 1];
+  const spb = 60 / Math.max(20, parseFloat($('tempo').value) || 136);
+  let off = playFrom - pulses.reduce((a, b) => a + b, 0) * spb;  // = baseT
+  for (let j = 0; j < pulses.length; j++) {
+    const d = pulses[j] * spb;
+    if (t < off + d) return { k: -1, j, frac: (t - off) / d, pulses };
+    off += d;
+  }
+  return null;
+}
+function updateBear(phase) {
+  const svg = $('bear-svg');
+  const N = phase ? Math.max(1, phase.pulses.length) : 4;
+  const fig = conductorFig(N);
+  const B = fig.bottoms.map(toXY), A = fig.apex.map(toXY);
+  const START = toXY([0, -0.9]);  // 始点=中央上(全拍子共通・固定)
+  if (bearSig !== 'on') {
+    bearSig = 'on';
+    // 重ね順: 胴体 → 左腕(静止) → コメットの尾 → 右腕(前足の先が打点H)
+    svg.innerHTML =
+      `<image href="images/bear-body.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
+      `<image href="images/bear-arm-left.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
+      `<polyline id="fig-trail" fill="none" stroke="#ff8c1a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>` +
+      `<g id="bear-arm-r"><image href="images/bear-arm-right.png" x="0" y="0" width="2048" height="2048"/></g>`;
+  }
+  // 星の位置。拍j内で 打点j→apex j→次の打点。前拍(phase.k<0)も同じ図形で準備を振る
+  // テンポで直線⇄曲線をブレンド: 速い曲=直線的(角ばる) / 遅い曲=曲線的(滑らか)
+  const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
+  const curveK = Math.max(0, Math.min(1, (160 - tempo) / 110));
+  let H = START;
+  if (phase) {
+    const j = phase.j, f = phase.frac, nj = (j + 1) % N;
+    const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+    const lin = f < 0.5 ? lerp(B[j], A[j], f * 2) : lerp(A[j], B[nj], (f - 0.5) * 2);
+    // 2次ベジェ(頂点が apex を通るよう制御点を補正)
+    const cx = 2 * A[j][0] - 0.5 * (B[j][0] + B[nj][0]), cy = 2 * A[j][1] - 0.5 * (B[j][1] + B[nj][1]);
+    const u = 1 - f, bez = [u * u * B[j][0] + 2 * u * f * cx + f * f * B[nj][0], u * u * B[j][1] + 2 * u * f * cy + f * f * B[nj][1]];
+    H = lerp(lin, bez, curveK);
+  }
+  // 連続する軌跡(コメットの尾)。小節/拍子が変わっても繋がる。瞬間移動しない
+  const nowt = performance.now() / 1000;
+  if (phase) trailBuf.push([H[0], H[1], nowt]); else trailBuf = [];
+  while (trailBuf.length && nowt - trailBuf[0][2] > 0.78) trailBuf.shift();
+  $('fig-trail').setAttribute('points', trailBuf.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
+  // 右腕: 肩(SHO)を支点に回転+伸縮させ、前足の先(スプライトの手先)を打点Hに乗せる。
+  // 停止時(phase無し)は BEAR_T で静止ポーズ(腕を右へ下ろした素の絵)。
+  let armT = BEAR_T;
+  if (phase) {
+    const vx = H[0] - SHO[0], vy = H[1] - SHO[1];
+    const kx = Math.max(0.28, Math.min(0.95, Math.hypot(vx, vy) / ARM_LEN));  // 伸縮(クランプ)
+    const ang = Math.atan2(vy, vx) * 180 / Math.PI;
+    armT = `translate(${SHO[0]},${SHO[1]}) rotate(${ang.toFixed(2)}) scale(${kx.toFixed(3)},${ARM_TH}) translate(${-ARM_PIV[0]},${-ARM_PIV[1]})`;
+  }
+  $('bear-arm-r').setAttribute('transform', armT);
+  $('bear-num').textContent = phase && phase.k >= 0 ? phase.k + 1 : '-';
+}
+
+function switchView(v) {
+  $('score-wrap').classList.toggle('hidden', v !== 'score');
+  $('metro-view').classList.toggle('hidden', v !== 'metro');
+  $('bear-view').classList.toggle('hidden', v !== 'bear');
+  if (v === 'metro') { metroSig = ''; updateMetro(null); }
+  if (v === 'bear') { bearSig = ''; trailBuf = []; updateBear(null); }
+}
+
+function highlight(t) {
+  let i = -1;
+  for (let k = 0; k < measureStarts.length; k++) {
+    if (measureStarts[k] !== null && measureStarts[k] <= t) i = k;
+    else if (measureStarts[k] !== null) break;
+  }
+  if (i === current) return;
+  current = i;
+  document.querySelectorAll('polygon').forEach(p => p.classList.toggle('active', +p.dataset.i === i));
+  const el = document.querySelector('polygon.active');
+  if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function currentTime() {
+  if ($('src').value === 'solo') return playing ? baseT + (now() - playStart) : null;
+  return (player && player.getCurrentTime) ? player.getCurrentTime() : null;
+}
+
+function tick() {
+  let t = currentTime();
+  if (t !== null) {
+    // 範囲ループ: Bの終わりまで来たらAの頭に戻す
+    if ($('loop').checked) {
+      const [ls, le] = loopRange();
+      if (t >= le) { jumpTo(ls); t = ls; }
+    }
+    const solo = $('src').value === 'solo';
+    const inPre = solo && t < playFrom;  // 前拍中(本編の手前)
+    // 前拍中は小節を光らせない
+    if (inPre) {
+      if (current !== -1) { current = -1; document.querySelectorAll('polygon.active').forEach(p => p.classList.remove('active')); }
+    } else {
+      highlight(t);
+    }
+    const view = $('view').value;  // メトロノーム/しきくまの図形も同じ拍で動かす
+    if (view === 'metro') updateMetro(inPre ? null : beatPhase(t));
+    else if (view === 'bear') updateBear(inPre ? prePhase(t) : beatPhase(t));  // 前拍も指揮(始点→beat1の準備)
+    // 単体(練習)は Web Audio スケジューラで正確に予約(下の setInterval)。ここは YouTube同期用
+    if (!solo) {
+      if (t < lastT - 0.1) { nextClick = clicks.findIndex(c => c.t > t); if (nextClick < 0) nextClick = clicks.length; }
+      lastT = t;
+      if ($('snd').checked) {
+        while (nextPre < preClicks.length && preClicks[nextPre] <= t) {
+          if (t - preClicks[nextPre] < 0.2) click(false);
+          nextPre++;
+        }
+        while (nextClick < clicks.length && clicks[nextClick].t <= t) {
+          if (t - clicks[nextClick].t < 0.2) click(clicks[nextClick].accent);
+          nextClick++;
+        }
+      }
+    }
+    if (solo && t < playFrom) {
+      $('status').textContent = '♪ 前拍…';
+    } else {
+      const info = current >= 0 ? meter.measures.find(x => x.index === current) : null;
+      $('status').textContent =
+        `${solo ? '' : t.toFixed(1) + 's / '}小節 ${current + 1}/${overlay.measures.length}  ${info ? info.ts : ''}`;
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// 単体(練習)の拍を Web Audio で先読み予約(ジッタの少ない正確な発音)
+setInterval(() => {
+  if (!playing || !actx || $('src').value !== 'solo') return;
+  const t = baseT + (now() - playStart);
+  const ahead = t + 0.12;  // 120ms 先まで予約
+  const snd = $('snd').checked;
+  while (nextPre < preClicks.length && preClicks[nextPre] < ahead) {
+    if (snd) click(false, audioTime(preClicks[nextPre]));
+    nextPre++;
+  }
+  while (nextClick < clicks.length && clicks[nextClick].t < ahead) {
+    if (snd) click(clicks[nextClick].accent, audioTime(clicks[nextClick].t));
+    nextClick++;
+  }
+}, 25);
+
+// ---- YouTube / 音声 ----
+// YouTube の URL(watch?v=, youtu.be/, embed/ など)から動画IDを取り出す。IDそのままもOK
+function videoId(input) {
+  const s = (input || '').trim();
+  const m = s.match(/(?:v=|youtu\.be\/|embed\/|\/v\/|shorts\/)([\w-]{11})/) || s.match(/^([\w-]{11})$/);
+  return m ? m[1] : s;
+}
+
+function makePlayer(input) {
+  $('player').innerHTML = '<div id="yt"></div>';
+  player = new YT.Player('yt', { width: 400, height: 225, videoId: videoId(input) });
+}
+function startAudio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  actx.resume();
+}
+
+// ---- イベント ----
+$('analyze').onclick = async () => {
+  const f = $('file').files[0];
+  if (!f) { $('up-status').textContent = '写真を選んでください'; return; }
+  $('up-status').textContent = '解析中… (小節検出 → Geminiが拍子を読み取り、数十秒)';
+  $('analyze').disabled = true;
+  try {
+    const fd = new FormData(); fd.append('file', f);
+    const res = await fetch('/process', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+    const data = await res.json();
+    currentJob = data.job; currentPiece = null; currentPieceName = '';
+    history.replaceState(null, '', '?job=' + data.job);  // 未保存でもリロード復元できるよう
+    initFromData(data.image, data.overlay, data.meter, null);
+  } catch (e) {
+    $('up-status').textContent = '解析に失敗: ' + e.message;
+  } finally {
+    $('analyze').disabled = false;
+  }
+};
+
+$('sample').onclick = async () => {
+  $('up-status').textContent = '読み込み中…';
+  try {
+    currentJob = null;
+    history.replaceState(null, '', location.pathname);
+    const [ov, mt, bt] = await Promise.all([
+      fetch('overlay.json').then(r => r.json()),
+      fetch('meter.json').then(r => r.json()),
+      fetch('beats.json').then(r => r.json()).catch(() => null),
+    ]);
+    initFromData('dance_movement.jpeg', ov, mt, bt);
+  } catch (e) { $('up-status').textContent = '読み込み失敗: ' + e.message; }
+};
+
+// 保存済みジョブ(補正込み)を URL の ?job= から復元
+async function loadFromJob(job) {
+  try {
+    const res = await fetch('/job/' + job);
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+    currentJob = job; currentPiece = null;
+    initFromData(data.image, data.overlay, data.meter, null);
+  } catch (e) { /* ジョブが無ければアップロード画面のまま */ }
+}
+
+// 保存した曲の一覧(アップロード画面のライブラリ)
+async function loadLibrary() {
+  try {
+    const pieces = await fetch('/pieces').then(r => r.json());
+    $('library').innerHTML = pieces.length
+      ? '<h3>▼ 保存した曲(クリックで再開)</h3>' + pieces.map(p =>
+          `<div class="piece-card" data-pid="${p.id}">` +
+          `<img src="${p.thumb || ''}"><span class="nm">${p.name}</span>` +
+          `<small>${p.pageCount}ページ</small></div>`).join('')
+      : '';
+    $('library').querySelectorAll('.piece-card').forEach(c => c.onclick = () => loadPiece(c.dataset.pid));
+  } catch (e) { /* 一覧取得失敗は無視 */ }
+}
+
+// 曲を開く(今は1ページ目を表示。複数ページは次ステップ)
+async function loadPiece(pid) {
+  try {
+    const d = await fetch('/piece/' + pid).then(r => r.json());
+    if (!d.pages || !d.pages.length) { $('up-status').textContent = 'この曲は読み込めません'; return; }
+    currentPiece = pid; currentPieceName = d.name;
+    const pg = d.pages[0];
+    currentJob = (pg.image.match(/jobs\/([^/]+)/) || [])[1] || null;
+    initFromData(pg.image, pg.overlay, pg.meter, null);
+    history.replaceState(null, '', '?piece=' + pid);
+  } catch (e) { $('up-status').textContent = '読み込み失敗: ' + e.message; }
+}
+
+$('back').onclick = () => {
+  playing = false; $('play').textContent = '▶再生';
+  document.body.classList.remove('review-mode');
+  currentJob = null; currentPiece = null; currentPieceName = '';
+  history.replaceState(null, '', location.pathname);
+  $('app').classList.add('hidden'); $('upload').classList.remove('hidden');
+  $('up-status').textContent = '';
+  loadLibrary();  // 一覧を最新に
+};
+
+// 小節k(通し番号)の拍の長さ配列(4分換算)
+function pulsesAt(k) {
+  const info = meter.measures.find(x => x.index === overlay.measures[k].index);
+  return info ? measurePulses(info) : [1, 1, 1, 1];
+}
+// 単体(練習)を小節k(本編=その小節の頭)から再生開始。前拍は「その小節と同じ拍」を手前に鳴らす
+function startSolo(k) {
+  const time = measureStarts[k] ?? 0;
+  const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
+  const spb = 60 / tempo;
+  playFrom = time;                         // ここから本編(小節ハイライト開始)
+  preClicks = [];
+  if ($('pre').checked) {
+    const pulses = pulsesAt(k);            // 開始小節と同じ拍(数・刻み)を前拍に
+    let off = -pulses.reduce((a, b) => a + b, 0);
+    pulses.forEach(dur => { preClicks.push(time + off * spb); off += dur; });
+    $('preN').value = pulses.length;       // 表示を合わせる
+  }
+  nextPre = 0;
+  playing = true;
+  baseT = preClicks.length ? preClicks[0] : time;  // 前拍ぶん手前から時計を回す
+  playStart = now();
+  audioStart = actx ? actx.currentTime : 0;  // この瞬間を音の基準に(先読み予約)
+  current = -1;
+  nextClick = clicks.findIndex(c => c.t >= playFrom);  // 本編の手前の小節クリックは鳴らさない
+  if (nextClick < 0) nextClick = clicks.length;
+  lastT = baseT;
+  $('play').textContent = '⏹停止';
+}
+
+function isPlaying() {
+  return $('src').value === 'solo' ? playing
+    : (player && player.getPlayerState && player.getPlayerState() === 1);
+}
+function clearCue() { document.querySelectorAll('polygon.cue').forEach(p => p.classList.remove('cue')); }
+// 開始小節を選ぶ(緑表示)。まだ再生はしない
+function setCue(idx) {
+  cueIndex = overlay.measures.findIndex(m => m.index === idx);
+  $('preN').value = pulsesAt(cueIndex).length;  // 前拍の拍数を開始小節に合わせて表示
+  clearCue();
+  const p = $('ov').querySelector(`polygon[data-i="${idx}"]`);
+  if (p) p.classList.add('cue');
+}
+// 選んだ小節(通し番号k)から再生(前拍も入る)
+function playFromOrdinal(k) {
+  startAudio();
+  clearCue();
+  const t = measureStarts[k] ?? 0;
+  if ($('src').value === 'solo') {
+    startSolo(k);
+  } else if (player && player.seekTo) {
+    current = -1; lastT = t; preClicks = []; nextPre = 0;
+    nextClick = clicks.findIndex(c => c.t >= t); if (nextClick < 0) nextClick = clicks.length;
+    player.seekTo(t, true); player.playVideo();
+  }
+}
+
+$('play').onclick = () => {
+  startAudio();
+  if ($('src').value === 'solo' && playing) {
+    playing = false; $('play').textContent = '▶再生';
+    document.querySelectorAll('polygon.active').forEach(p => p.classList.remove('active')); current = -1;
+  } else {
+    playFromOrdinal(cueIndex);  // 選んだ小節(既定0)から
+  }
+};
+
+$('restart').onclick = () => { cueIndex = 0; playFromOrdinal(0); };
+
+let ytReady = false;
+$('load').onclick = () => {
+  startAudio();
+  if (ytReady) makePlayer($('vid').value.trim());
+  else $('status').textContent = 'YouTube API 読込中…もう一度押してください';
+};
+
+// 補正パネル
+$('e-apply').onclick = () => {
+  if (selected < 0) return;
+  pushUndo();
+  let info = meter.measures.find(x => x.index === selected);
+  if (!info) { info = { index: selected }; meter.measures.push(info); }
+  info.ts = ($('e-ts').value.trim()) || '4/4';
+  info.beats = beatsOf(info.ts);
+  info.beat_groups = $('e-bg').value.split(',').map(s => parseInt(s.trim())).filter(n => n > 0);
+  info.confidence = 1;  // 人が直した=確定(紫破線を解除)
+  const poly = $('ov').querySelector(`polygon[data-i="${selected}"]`);
+  if (poly) poly.classList.remove('lowconf');
+  computeTimeline(); current = -1; refreshLabels();
+  $('e-close').onclick();  // 反映したら閉じる
+};
+$('e-close').onclick = () => {
+  $('editor').classList.add('hidden');
+  document.querySelectorAll('polygon.sel').forEach(p => p.classList.remove('sel'));
+  if ($('spotlight')) $('spotlight').innerHTML = '';
+  selected = -1;
+};
+// 補正中(暗幕表示中)に楽譜をクリックしたら閉じる(閉じるボタンを押さなくてよい)
+$('score-wrap').onclick = () => {
+  if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
+};
+// 補正パネルをタイトルでドラッグして動かせる(邪魔な時に移動)
+(function () {
+  const ed = $('editor'), h = $('e-title');
+  let dx = 0, dy = 0, dragging = false;
+  h.addEventListener('mousedown', e => {
+    dragging = true; dx = e.clientX - ed.offsetLeft; dy = e.clientY - ed.offsetTop; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    ed.style.left = (e.clientX - dx) + 'px';
+    ed.style.top = (e.clientY - dy) + 'px';
+    ed.style.right = 'auto'; ed.style.bottom = 'auto';
+  });
+  window.addEventListener('mouseup', () => dragging = false);
+})();
+
+// 判定表示モードのON/OFF
+$('labelsBtn').onclick = () => {
+  const g = $('labels');
+  const on = g.style.display === 'none';
+  g.style.display = on ? '' : 'none';
+  $('labelsBtn').textContent = on ? '🏷判定を隠す' : '🏷判定を表示';
+};
+// 名前をつけて保存(補正 + 曲として保存)。次回ライブラリから再開できる
+$('save').onclick = async () => {
+  const body = { meter: meter, overlay: overlay };  // 拍子(meter)+枠(overlay)の両方
+  const note = (s) => { if ($('status')) $('status').textContent = s; $('tool-hint').textContent = s; };
+  try {
+    if (!currentJob) {  // サンプルはブラウザ保存のみ
+      localStorage.setItem('kuma_save_' + currentImage, JSON.stringify(body));
+      note('💾 保存しました(次回も反映)');
+      return;
+    }
+    // 1. このページの補正(枠+拍子)を保存
+    await fetch('/save/' + currentJob, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    // 2. 曲として名前をつけて保存(新規なら名前を聞く)
+    let name = currentPieceName;
+    if (!currentPiece) {
+      name = prompt('曲の名前をつけて保存', currentPieceName || '');
+      if (name === null) { note('💾 補正だけ保存しました'); return; }
+    }
+    const res = await fetch('/piece', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: currentPiece, name: name || '(無題)', pages: [currentJob] }),
+    });
+    const d = await res.json();
+    currentPiece = d.id; currentPieceName = name || '(無題)';
+    history.replaceState(null, '', '?piece=' + currentPiece);
+    note(`💾 「${currentPieceName}」を保存しました`);
+  } catch (e) { note('保存に失敗: ' + e.message); }
+};
+
+['loop', 'loopA', 'loopB'].forEach(id => $(id).oninput = $(id).onchange = updateLoopHighlight);
+['start', 'tempo'].forEach(id => $(id).oninput = () => { computeTimeline(); current = -1; $('metro-bpm').textContent = $('tempo').value; });
+$('view').onchange = () => switchView($('view').value);
+$('metro-tempo').onclick = () => {
+  const n = prompt('テンポ ♩=', $('tempo').value);
+  if (n && parseInt(n)) { $('tempo').value = parseInt(n); $('metro-bpm').textContent = n; computeTimeline(); current = -1; }
+};
+['mode', 'src'].forEach(id => $(id).onchange = () => {
+  computeTimeline(); current = -1; playing = false; $('play').textContent = '▶再生';
+});
+
+// 調節: ツール切替 / モード切替 / 戻す
+['edit', 'split', 'merge'].forEach(t => $('tool-' + t).onclick = () => setReviewTool(t));
+$('to-play').onclick = enterPlay;
+$('to-review').onclick = enterReview;
+$('undo').onclick = undo;
+// Ctrl/Cmd+Z で戻す(調節画面でテキスト入力中以外)
+window.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && appMode === 'review'
+      && !/^(INPUT|TEXTAREA)$/.test((e.target.tagName || ''))) {
+    e.preventDefault(); undo();
+  }
+});
+
+window.onYouTubeIframeAPIReady = () => { ytReady = true; };
+const s = document.createElement('script');
+s.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(s);
+
+// 起動時: ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
+loadLibrary();
+const params = new URLSearchParams(location.search);
+if (params.get('piece')) loadPiece(params.get('piece'));
+else if (params.get('job')) loadFromJob(params.get('job'));
+</script>
+</body>
+</html>

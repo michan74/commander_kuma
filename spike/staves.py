@@ -144,6 +144,9 @@ def straighten(img, staff, space):
 
     ih, iw = img.shape[:2]
     margin = int(space * 4)
+    # NOTE: 左マージンを狭く(space*2)するのは意図的。段の先頭の音部記号・調号(♯♭の縦棒)を
+    #   小節線検出から除外するため。広げると偽の小節線が増える(space*8で検証: 58→61)。
+    #   クレフが少し切れるが、拍子記号は五線の右側にあり失われないので実害なし
     x0, x1 = max(0, int(xs[0] - space * 2)), min(iw, int(xs[-1] + space * 2))
     y0, y1 = max(0, int(top.min() - margin)), min(ih, int(bottom.max() + margin))
     crop = img[y0:y1, x0:x1]

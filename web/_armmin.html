@@ -1,0 +1,15 @@
+<!doctype html><meta charset=utf-8><body style="background:#fff;margin:0">
+<svg id=s viewBox="0 0 420 420" width=560 height=560 xmlns="http://www.w3.org/2000/svg"></svg>
+<pre id=log style="font:11px monospace"></pre>
+<script>
+const SHO=[305.2,196.0],ARM_PIV=[1087,919],ARM_LEN=263,ARM_TH=0.425;
+function armT(H){const vx=H[0]-SHO[0],vy=H[1]-SHO[1];
+ const kx=Math.max(0.28,Math.min(0.95,Math.hypot(vx,vy)/ARM_LEN)),ang=Math.atan2(vy,vx)*180/Math.PI;
+ return `translate(${SHO[0]},${SHO[1]}) rotate(${ang.toFixed(2)}) scale(${kx.toFixed(3)},${ARM_TH}) translate(${-ARM_PIV[0]},${-ARM_PIV[1]})`;}
+const t1=armT([205,304]);
+document.getElementById('s').innerHTML =
+  `<rect x=0 y=0 width=420 height=420 fill="#eef"/>`+
+  `<circle cx=305.2 cy=196 r=5 fill=blue/>`+
+  `<g transform="${t1}"><image href="images/bear-arm-right.png" x=0 y=0 width=2048 height=2048/></g>`;
+document.getElementById('log').textContent = 't1='+t1;
+</script>

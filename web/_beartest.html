@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff} svg{width:560px;height:560px;display:block}
+</style></head><body>
+<svg id="s" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const FIG = { cx: 208, cy: 212, sx: 66, sy: 60 };
+const toXY = p => [FIG.cx + p[0] * FIG.sx, FIG.cy + p[1] * FIG.sy];
+const BEAR_T = 'translate(-156.8,-194.6) scale(0.425)';
+const SHO = [305.2, 196.0], ARM_PIV = [1087, 919], ARM_LEN = 263, ARM_TH = 0.425;
+const PAW_OFF = [10, 42];  // 先端(打点)→握り(前足)のオフセット。棒は前足から上へ。
+function conductorFig(N){const D={4:{b:[[0,1],[-0.65,1],[0,1],[0.65,1]],a:[[-0.5,-0.6],[0.1,-0.68],[0.5,-0.6],[0,-0.9]]}};return{bottoms:D[N].b,apex:D[N].a};}
+const fig = conductorFig(4), N = 4;
+const B = fig.bottoms.map(toXY), A = fig.apex.map(toXY);
+function Hat(j,f){const nj=(j+1)%N,lerp=(p,q,t)=>[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];
+  return f<0.5?lerp(B[j],A[j],f*2):lerp(A[j],B[nj],(f-0.5)*2);}
+function armT(paw){const vx=paw[0]-SHO[0],vy=paw[1]-SHO[1];
+  const kx=Math.max(0.28,Math.min(0.95,Math.hypot(vx,vy)/ARM_LEN)),ang=Math.atan2(vy,vx)*180/Math.PI;
+  return `translate(${SHO[0]},${SHO[1]}) rotate(${ang.toFixed(2)}) scale(${kx.toFixed(3)},${ARM_TH}) translate(${-ARM_PIV[0]},${-ARM_PIV[1]})`;}
+let h = `<image href="images/bear-body.png" x=0 y=0 width=2048 height=2048 transform="${BEAR_T}"/>`
+      + `<image href="images/bear-arm-left.png" x=0 y=0 width=2048 height=2048 transform="${BEAR_T}"/>`;
+// 打点パターンの経路(全4拍)をうっすら
+let path=[]; for(let j=0;j<N;j++)for(let f=0;f<1;f+=0.1)path.push(Hat(j,f));
+h += `<polyline points="${path.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill=none stroke="#ff8c1a" stroke-width=2 opacity=0.45/>`;
+// 代表位置(打点1)で: 右腕(前足=握り) + 指揮棒 + 先端
+function drawPose(tip,solid){const paw=[tip[0]+PAW_OFF[0],tip[1]+PAW_OFF[1]];const op=solid?1:0.28;
+  return `<g opacity="${op}"><g transform="${armT(paw)}"><image href="images/bear-arm-right.png" x="0" y="0" width="2048" height="2048"/></g>`
+       + `<line x1="${paw[0].toFixed(1)}" y1="${paw[1].toFixed(1)}" x2="${tip[0].toFixed(1)}" y2="${tip[1].toFixed(1)}" stroke="#2b2b2b" stroke-width="2.6" stroke-linecap="round"/>`
+       + `<circle cx="${tip[0].toFixed(1)}" cy="${tip[1].toFixed(1)}" r="3.2" fill="#fff" stroke="#2b2b2b" stroke-width="1.4"/></g>`;}
+h+=drawPose(Hat(0,0.55),true);  // 1拍目を振り下ろした直後あたり(代表ポーズ)
+document.getElementById('s').innerHTML=h;
+</script></body></html>

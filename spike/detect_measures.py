@@ -22,7 +22,7 @@ def binarize(gray):
     )
 
 
-def draw_staff(image, cands, boxes, start_index):
+def draw_staff(image, cands, boxes, start_index, splits):
     out = image.copy()
     for c in cands:
         color = (0, 200, 0) if c["ok"] else (0, 0, 255)
@@ -31,6 +31,12 @@ def draw_staff(image, cands, boxes, start_index):
         cv2.rectangle(out, (b["x"], b["y"]), (b["x"] + b["w"], b["y"] + b["h"]), (0, 140, 255), 3)
         cv2.putText(out, str(start_index + i), (b["x"] + 8, b["y"] - 12),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 140, 255), 3)
+    # NOTE: 分割候補(見落とした小節線かもしれない線)はマゼンタ+D番号で目立たせる。段階2のAIが
+    #   「この枠を D番号 で割る」と番号で指す。赤線の上に重ねて描く
+    for s in splits:
+        cv2.line(out, (s["x"], s["y0"]), (s["x"], s["y1"]), (255, 0, 255), 3)
+        cv2.putText(out, f"D{s['id']}", (s["x"] + 4, s["y1"] + 34),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 255), 3)
     return out
 
 
@@ -70,7 +76,7 @@ def main():
     widths = [s["xs"][-1] - s["xs"][0] for s in staves]
     median_width = float(np.median(widths)) if widths else 0
 
-    straights, all_boxes, measures, report = [], [], [], []
+    straights, all_boxes, measures, report, split_cands = [], [], [], [], []
     for si, (staff, width) in enumerate(zip(staves, widths)):
         st = straighten(img, staff, space)
         curve = quality(st, space)
@@ -83,18 +89,30 @@ def main():
         gray = cv2.cvtColor(st["image"], cv2.COLOR_BGR2GRAY)
         cands = detect_barlines(binarize(gray), gray, st, space)
         boxes = build_measures(st, cands, space)
-        cv2.imwrite(str(out_dir / f"staff_{si:02d}.jpg"), draw_staff(st["image"], cands, boxes, len(measures)))
+        splits = []
+        for c in cands:
+            if c["missed"]:
+                splits.append({"id": len(split_cands), "staff": si, "x": c["x"],
+                               "y0": c["y0"], "y1": c["y1"]})
+                split_cands.append({"id": len(split_cands), "staff": si, "x": c["x"]})
+        # NOTE: clean_NN は描き込みなしの素の段画像。段階2・実験でAIに「素直に読ませる」入力に使う
+        cv2.imwrite(str(out_dir / f"clean_{si:02d}.jpg"), st["image"])
+        cv2.imwrite(str(out_dir / f"staff_{si:02d}.jpg"),
+                    draw_staff(st["image"], cands, boxes, len(measures), splits))
         for b in boxes:
             measures.append({"index": len(measures), "staff": si, "bbox": b})
         straights.append(st)
         all_boxes.append(boxes)
-        report.append({"staff": si, "crop": st["crop"], "angle": round(st["angle"], 2)})
+        report.append({"staff": si, "crop": st["crop"], "angle": round(st["angle"], 2),
+                       "matrix": st["matrix"].tolist()})
         print(f"staff {si}: angle={st['angle']:+.2f} curve={curve:.2f} coverage={staff['coverage']:.2f} "
-              f"width={width_ratio:.2f} ok={sum(c['ok'] for c in cands)} measures={len(boxes)}")
+              f"width={width_ratio:.2f} ok={sum(c['ok'] for c in cands)} measures={len(boxes)} "
+              f"splits={len(splits)}")
 
     cv2.imwrite(str(out_dir / "overview.jpg"), draw_overview(img, straights, all_boxes))
     (out_dir / "measures.json").write_text(json.dumps(measures, indent=2))
     (out_dir / "staves.json").write_text(json.dumps(report, indent=2))
+    (out_dir / "split_candidates.json").write_text(json.dumps(split_cands, indent=2))
 
     print(f"measures={len(measures)}")
     for e in errors:

@@ -53,10 +53,15 @@ def detect_barlines(binary, gray, staff, space):
         top_ink = _side_ink(ink, x, bw, y, space)
         bottom_ink = _side_ink(ink, x, bw, y + bh, space)
         stem = _looks_like_stem(top_ink, bottom_ink)
+        ok = spans and not stem and darkness >= PENCIL_DARKNESS
         cands.append({
             "x": int(cx), "y0": int(y), "y1": int(y + bh), "w": int(bw),
             "spans": bool(spans), "stem": bool(stem), "darkness": round(darkness, 1),
-            "ok": bool(spans and not stem and darkness >= PENCIL_DARKNESS),
+            "ok": bool(ok),
+            # NOTE: 全高に届き濃いのに stem 判定で捨てた線 = 見落とした小節線の候補。
+            #   密集段では小節線と符尾を1つの閾値で分けきれない(docs/todo.md)。段階2のAIに
+            #   「どのDで割るか」を番号で選ばせる分割位置の候補にする。座標はこの検出値を使う
+            "missed": bool(spans and stem and darkness >= PENCIL_DARKNESS),
         })
     cands.sort(key=lambda c: c["x"])
     return cands
