@@ -103,8 +103,10 @@ def main():
             measures.append({"index": len(measures), "staff": si, "bbox": b})
         straights.append(st)
         all_boxes.append(boxes)
+        # NOTE: space は写真1枚で1つだが、staves.json の形(段の配列)を変えずに渡すため各段に入れる。
+        #   read_start.py がページ頭のクロップの大きさを space の倍数で決めるのに使う。
         report.append({"staff": si, "crop": st["crop"], "angle": round(st["angle"], 2),
-                       "matrix": st["matrix"].tolist()})
+                       "space": space, "matrix": st["matrix"].tolist()})
         print(f"staff {si}: angle={st['angle']:+.2f} curve={curve:.2f} coverage={staff['coverage']:.2f} "
               f"width={width_ratio:.2f} ok={sum(c['ok'] for c in cands)} measures={len(boxes)} "
               f"splits={len(splits)}")

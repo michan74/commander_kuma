@@ -76,7 +76,9 @@
   #score-strip { width: 100%; display: block; border-radius: 6px; }
   #strip-label { text-align: center; font-size: 14px; color: #666; min-height: 18px; margin-bottom: 3px; }
   /* ハンバーガーメニュー */
-  #menu-btn { font-size: 20px; padding: 6px 10px; line-height: 1; }
+  #menu-btn { font-size: 20px; padding: 6px 11px; line-height: 1; background: var(--brown); color: #fff; }
+  #settings-btn { font-size: 24px; padding: 5px 13px; line-height: 1; margin-left: auto; }
+  #play-ctrls { flex: 1; }  /* 設定(⚙)を画面右端へ寄せるため幅いっぱいに */
   #ham-menu { position: fixed; top: 56px; left: 0; z-index: 50; background: var(--bark);
               border: 1px solid #444; border-radius: 0 0 12px 0; padding: 10px;
               display: flex; flex-direction: column; gap: 8px; min-width: 180px;
@@ -176,7 +178,7 @@
 
 <!-- アップロード画面 -->
 <section id="upload">
-  <h1>🐻 指揮者っくま</h1>
+  <h1>指揮者っくま</h1>
   <p class="sub">楽譜の写真を読み込むと、変拍子でも指揮(メトロノーム)してくれる練習アプリ</p>
   <div class="card">
     <input id="file" type="file" accept="image/*">
@@ -191,7 +193,7 @@
 <div id="app" class="hidden">
 <header>
   <button id="menu-btn" class="btn sub" title="メニュー">☰</button>
-  <strong>🐻 指揮者っくま</strong>
+  <strong>指揮者っくま</strong>
   <!-- JS参照用(非表示) -->
   <button id="back" class="hidden"></button>
 
@@ -199,14 +201,14 @@
   <div id="review-ctrls" class="ctrls">
     <strong>調節</strong>
     <div class="seg">
-      <button id="tool-edit" class="btn sub tool active">✏ 拍子</button>
-      <button id="tool-split" class="btn sub tool">✂ 分割</button>
-      <button id="tool-merge" class="btn sub tool">⇔ 結合</button>
+      <button id="tool-edit" class="btn sub tool active">拍子</button>
+      <button id="tool-split" class="btn sub tool">分割</button>
+      <button id="tool-merge" class="btn sub tool">結合</button>
     </div>
-    <button id="undo" class="btn sub" disabled>↶ 戻す</button>
+    <button id="undo" class="btn sub" disabled>戻す</button>
     <span id="tool-hint" style="color:var(--accent);font-size:12px"></span>
     <span style="color:#888;font-size:11px"><span style="color:#d500f9">紫破線</span>=AI自信なし(要確認)</span>
-    <button id="rename" class="btn sub">✏ 名前</button>
+    <button id="rename" class="btn sub">名前</button>
     <button id="to-play" class="btn">▶ この内容で練習する</button>
   </div>
 
@@ -265,7 +267,7 @@
 <!-- 開始情報の確認(自律: 読み取りにくい時だけ くまが聞く) -->
 <div id="startpopup" class="modal hidden">
   <div class="sp2-card">
-    <div class="sp2-head">🐻 正しく振るために確認させて！</div>
+    <div class="sp2-head">正しく振るために確認させて！</div>
     <p class="sp2-note" id="sp2-note">このページの冒頭、拍子が読み取りにくいところがありました。<br>開始の<b>拍子</b>と<b>テンポ</b>を教えてください。</p>
     <label class="sp2-field">開始の拍子
       <span><input id="st-num" type="number" min="1" value="4"> <b>/</b> <input id="st-den" type="number" min="1" value="4"></span>
@@ -306,10 +308,10 @@
       <strong>設定</strong>
       <button id="settings-close" class="kp-close" title="閉じる">×</button>
     </div>
+    <label class="sp-row"><input id="snd" type="checkbox"> メトロノーム音(初期=なし)</label>
     <label class="sp-row"><input id="pre" type="checkbox" checked> 前拍あり <input id="preN" type="number" value="4" readonly style="width:36px;border:none;background:transparent;color:#888">拍</label>
-    <input id="snd" type="checkbox" class="hidden" checked>
-    <label class="sp-row"><input id="theme-toggle" type="checkbox"> 🌲 森の背景(暗め)</label>
-    <label class="sp-row"><input id="loop" type="checkbox"> 🔁 ループ</label>
+    <label class="sp-row"><input id="theme-toggle" type="checkbox"> 森の背景(暗め)</label>
+    <label class="sp-row"><input id="loop" type="checkbox"> ループ</label>
     <div class="sp-row" id="loop-range-row">
       <span style="color:#888;font-size:13px">小節</span>
       <input id="loopA" type="number" min="1" value="1" style="width:48px">
@@ -895,37 +897,41 @@ function updateMetro(phase) {
   if (m) m.setAttribute('transform', `translate(${pos[0]},${pos[1]})`);
 }
 
-// 指揮図形(参考: animato-jp.net)。b=打点(下, x:-1左〜1右, y=1下)、a=拍間の跳ね上げ頂点(apexは高い)
-// 手は 打点へ下ろし → apex へ跳ね上げ → 次の打点、を繰り返す。a の最後は始点(中央上/2拍は左上)
+// 基本の指揮図形: 打点は中央下に1つ(全拍同じ)。apexへ跳ね上げ、左右に少しずつずらし一直線を避ける。
+// 手は 打点(下)→ apex(上)→ 次の打点、を繰り返す。a の最後は始点(中央上)へ戻る。x:-1左+1右, y:+1下
 function conductorFig(N) {
-  const D = {
-    1: { b: [[0, 1]], a: [[0, -0.5]] },
-    2: { b: [[0, 1], [0, 1]], a: [[0.8, -0.55], [0, -0.9]] },
-    3: { b: [[0, 1], [0.6, 1], [-0.6, 1]], a: [[0.5, -0.6], [0, -0.6], [0, -0.9]] },
-    4: { b: [[0, 1], [-0.65, 1], [0, 1], [0.65, 1]], a: [[-0.5, -0.6], [0.1, -0.68], [0.5, -0.6], [0, -0.9]] },
-    5: { b: [[0, 1], [-0.6, 1], [0, 1], [0.5, 1], [0.85, 1]], a: [[-0.45, -0.55], [-0.1, -0.65], [0.3, -0.55], [0.7, -0.55], [0, -0.9]] },
-    6: { b: [[0, 1], [-0.5, 1], [-0.85, 1], [0, 1], [0.5, 1], [0.85, 1]], a: [[-0.3, -0.55], [-0.7, -0.55], [-0.1, -0.68], [0.3, -0.55], [0.7, -0.55], [0, -0.9]] },
-  };
-  if (D[N]) return { bottoms: D[N].b, apex: D[N].a };
-  const b = Array.from({ length: N }, (_, i) => [-1 + (N > 1 ? 2 * i / (N - 1) : 0), 1]);
-  const a = b.map((p, j) => j === N - 1 ? [0, -0.9] : [(b[j][0] + b[j + 1][0]) / 2, -0.6]);
-  return { bottoms: b, apex: a };
+  const bottoms = Array.from({ length: N }, () => [0, 1]);
+  const apex = Array.from({ length: N }, (_, j) => {
+    if (j === N - 1) return [0, -0.85];                    // 最後の拍は中央上(始点へ戻る)
+    const side = j % 2 === 0 ? -1 : 1;                     // 跳ね上げを左右交互に
+    return [side * (0.9 - 0.06 * j), -0.55 + 0.02 * j];   // 横に大きく・少しずつずらす(一直線回避)
+  });
+  return { bottoms, apex };
+}
+// Catmull-Rom スプライン: 点列 pts の区間 i(pts[i]→pts[i+1])を t(0-1)で滑らかに補間(閉ループ)。全点を通る
+function catmullRom(pts, i, t) {
+  const n = pts.length;
+  const p0 = pts[(i - 1 + n) % n], p1 = pts[i % n], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+  const t2 = t * t, t3 = t2 * t;
+  const cr = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+  return [cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1])];
 }
 
-// しきくま: くま本体(胴体+左右の腕)を描き、右前足の先が打点をなぞる(打点へ下ろし→apexへ跳ね上げ)
+// しきくま: パーツ分割スプライト(2360x1640 同一キャンバス)を重ねた立ち絵。各パーツを支点で動かす
 let bearSig = '', trailBuf = [];
-// 指揮図形エリア=くまの胸の前。START([0,-0.9])が上(始点)、打点([_,1])が下(お腹の高さ)
-const FIG = { cx: 208, cy: 212, sx: 66, sy: 60 };
+let sparkT = -1, sparkPos = [0, 0], lastSparkBeat = '';  // 打点のキラッ(発火時刻・位置・直近拍)
+// 採寸(canvas座標, 推定=要調整): 立ち絵中心(1157,907) / 右腕 肩(990,775)→手先(650,935) / 左腕 肩(1350,860) / 首(1142,840)
+const KSC = 0.36;  // キャンバス→SVG の縮尺(立ち絵高さ~1046 を ~380 に)
+const KOX = 210 - 1157 * KSC, KOY = 210 - 907 * KSC;  // 立ち絵中心をSVG中央(210,210)へ
+const BEAR_T = `translate(${KOX.toFixed(1)},${KOY.toFixed(1)}) scale(${KSC})`;
+const toW = (x, y) => [x * KSC + KOX, y * KSC + KOY];  // canvas座標 → SVG(world)座標
+const RSHO = [985, 860], RPAW = [660, 815];     // 右腕 肩(右=胴体側の付け根)・手先(左=肉球, canvas)
+const LSHO = [1350, 860], NECK = [1142, 840];   // 左腕 肩 / 首=頭の回転支点(canvas)
+const PAW_OFF = [8, 34];  // 打点(棒先端)→握り(手先)のオフセット(world)
+// 指揮エリア=くまの顔下〜みぞおち(縦長・体のやや左)。手先がこの範囲を動く(肩は固定)。
+// START=上が始点, 打点=下。sx/sy=振り幅(condStyle.widthで拡縮)。横は狭め=縦の上下動が主
+const FIG = { cx: 150, cy: 230, sx: 110, sy: 92 };
 const toXY = p => [FIG.cx + p[0] * FIG.sx, FIG.cy + p[1] * FIG.sy];
-const PAW_OFF = [10, 42];  // 打点(=指揮棒の先端)→前足(握り)のオフセット。棒は前足から上へ伸びる。
-// NOTE: 画像は 2048x2048 の同一キャンバスに配置された透過PNG(胴体/右腕/左腕)。採寸値:
-//   胴体bbox x[653,1073] y[552,1352] 中心(863,952) / 右腕 肩(1087,919)→手先(1350,930) / 左腕 肩(690,939)
-// BEAR_T はスプライト座標→SVG(420)の配置変換。胴体中心(863,952)をSVG(210,210)へ、scale=0.425。
-const BEAR_T = 'translate(-156.8,-194.6) scale(0.425)';
-const SHO = [305.2, 196.0];   // 右肩(world) = BEAR_T を右腕アンカー(1087,919)に適用した点
-const ARM_PIV = [1087, 919];  // 右腕スプライトの肩アンカー(=回転の支点)
-const ARM_LEN = 263;          // 右腕スプライト 肩→手先 の長さ(px)
-const ARM_TH = 0.425;         // 腕の太さ方向scale(=BEAR_T。伸縮しても太さは一定に保つ)
 
 // 前拍中の指揮フェーズ(開始小節と同じ拍数で、始点→beat1 の準備を振る)。k=-1
 function prePhase(t) {
@@ -946,97 +952,93 @@ function applyTheme() {
   const t = $('theme-toggle'); if (t) t.checked = theme === 'leaves';
   bearSig = '';  // しきくまの色を背景に合わせ再生成させる
 }
+// 表現スタイル(振りの大きさ/沈み/うなずき/左手/カーブ)。決め打ちをやめパラメータ化。
+// ★ここを曲・小節・拍(phase)ごとに AI が決めると「指揮者エージェント」になる(今は既定値)。
+// 例: 強拍は width/sink を上げる、フレーズ終わりは curve(ため)を足す、クレッシェンドで徐々に width↑
+function condStyle(phase) {
+  return { width: 1, sink: 1, nod: 1, cue: 1, curve: 0 };
+}
 function updateBear(phase) {
   const svg = $('bear-svg');
   const N = phase ? Math.max(1, phase.pulses.length) : 4;
   const fig = conductorFig(N);
-  const B = fig.bottoms.map(toXY), A = fig.apex.map(toXY);
-  const START = toXY([0, -0.9]);  // 始点=中央上(全拍子共通・固定)
-  // テーマ(leaves=暗 / marble=明)に応じて指揮棒・軌道・星の色を切り替える
-  const dark = theme === 'leaves';
-  const batonC = dark ? '#fff' : '#2A2922';
-  const guideC = dark ? 'rgba(255,255,255,0.42)' : 'rgba(42,41,34,0.3)';
-  const dotOffC = dark ? '#ffd54a' : '#7D5642';
-  const tipC = dark ? '#ffd54a' : '#506D2F';
-  if (bearSig !== 'fig' + N + dark) {
-    bearSig = 'fig' + N + dark;
-    // 軌道ガイド(薄い破線): 打点 B0→(apex)→B1→…→B0 を2次ベジェで。下のアニメ(bez)と同じ曲線
-    let d = `M ${B[0][0].toFixed(1)} ${B[0][1].toFixed(1)}`;
-    for (let j = 0; j < N; j++) {
-      const nj = (j + 1) % N;
-      const cx = 2 * A[j][0] - 0.5 * (B[j][0] + B[nj][0]);
-      const cy = 2 * A[j][1] - 0.5 * (B[j][1] + B[nj][1]);
-      d += ` Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${B[nj][0].toFixed(1)} ${B[nj][1].toFixed(1)}`;
-    }
-    // 打点の星(普段は薄く、到達した瞬間に下のアニメで発光フィルタで光らせる)
-    const dots = B.map((p, j) =>
-      `<polygon class="fig-dot" data-j="${j}" points="${star(p[0], p[1], 9, 4, 5)}" fill="${dotOffC}" opacity="0.35"/>`
-    ).join('');
-    // 重ね順: defs(発光) → 胴体 → 左腕 → 軌道ガイド → 打点星 → 尾 → 右腕 → 指揮棒 → 先端
-    // NOTE: 自己終了タグは直前の属性を必ず引用符で囲む("...."/>)。 opacity=0.8/> のように
-    //   値と / が地続きだと /> が閉じ扱いされず、後続要素が全てこの要素の子になり不可視化する。
+  const st = condStyle(phase);  // 表現パラメータ(将来AIが供給)。振り幅などをここで駆動
+  const SX = FIG.sx * st.width, SY = FIG.sy * st.width;
+  const XY = p => [FIG.cx + p[0] * SX, FIG.cy + p[1] * SY];
+  const B = fig.bottoms.map(XY), A = fig.apex.map(XY);
+  const START = XY([0, -0.9]);  // 始点=中央上(全拍子共通・固定)
+  // Catmull-Rom 用の点列: 打点→apex→打点→apex…(閉ループ)。手先がこれを滑らかになぞる
+  const pts = [];
+  for (let j = 0; j < N; j++) { pts.push(B[j]); pts.push(A[j]); }
+  if (bearSig !== 'fig' + N) {
+    bearSig = 'fig' + N;
+    // パーツを同一キャンバス(2360x1640)に重ねて立ち絵に。重ね順: 足→胴体→左腕→右腕→頭(顔+目+口)→尾
+    // NOTE: 自己終了タグは直前の属性を必ず引用符で囲む("...."/>)。opacity=0.8/> だと /> が閉じ扱いされず不可視化する
+    const P = (id, f) => `<image id="${id}" href="images/kuma/${f}" x="0" y="0" width="2360" height="1640" transform="${BEAR_T}"/>`;
     svg.innerHTML =
-      `<defs><filter id="dot-glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="4.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` +
-      `<image href="images/bear-body.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
-      `<image href="images/bear-arm-left.png" x="0" y="0" width="2048" height="2048" transform="${BEAR_T}"/>` +
-      `<path id="fig-guide" d="${d}" fill="none" stroke="${guideC}" stroke-width="2" stroke-dasharray="4 5"/>` +
-      dots +
+      P('k-leg-r', 'leg-r.png') + P('k-leg-l', 'leg-l.png') +
+      P('k-body', 'body.png') +
+      P('k-arm-l', 'arm-l.png') +
+      P('k-arm-r', 'arm-r.png') +
+      `<g id="k-head">` + P('k-face', 'face.png') + P('k-eyes', 'eyes.png') + P('k-mouth', 'mouth.png') + `</g>` +
       `<polyline id="fig-trail" fill="none" stroke="#ffb24d" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>` +
-      `<g id="bear-arm-r"><image href="images/bear-arm-right.png" x="0" y="0" width="2048" height="2048"/></g>` +
-      `<line id="bear-baton" stroke="${batonC}" stroke-width="2.6" stroke-linecap="round"/>` +
-      `<circle id="bear-tip" r="3.6" fill="${tipC}" stroke="${batonC}" stroke-width="1.4"/>`;
+      `<polygon id="fig-spark" points="${star(0, 0, 9, 3.5, 5)}" opacity="0"/>`;  // 打点でキラッと光る
   }
-  // 星の位置。拍j内で 打点j→apex j→次の打点。前拍(phase.k<0)も同じ図形で準備を振る
-  // テンポで直線⇄曲線をブレンド: 速い曲=直線的(角ばる) / 遅い曲=曲線的(滑らか)
-  const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
-  const curveK = Math.max(0, Math.min(1, (160 - tempo) / 110));
+  // 手先の位置 H: 点列を Catmull-Rom で滑らかになぞる。前拍(phase.k<0)も同じ図形で準備を振る
   let H = START;
   if (phase) {
-    const j = phase.j, f = phase.frac, nj = (j + 1) % N;
-    const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-    const lin = f < 0.5 ? lerp(B[j], A[j], f * 2) : lerp(A[j], B[nj], (f - 0.5) * 2);
-    // 2次ベジェ(頂点が apex を通るよう制御点を補正)
-    const cx = 2 * A[j][0] - 0.5 * (B[j][0] + B[nj][0]), cy = 2 * A[j][1] - 0.5 * (B[j][1] + B[nj][1]);
-    const u = 1 - f, bez = [u * u * B[j][0] + 2 * u * f * cx + f * f * B[nj][0], u * u * B[j][1] + 2 * u * f * cy + f * f * B[nj][1]];
-    H = lerp(lin, bez, curveK);
+    // 拍j内: 前半=打点→apex(区間2j), 後半=apex→次の打点(区間2j+1)
+    const seg = phase.frac < 0.5 ? 2 * phase.j : 2 * phase.j + 1;
+    const lt = phase.frac < 0.5 ? phase.frac * 2 : (phase.frac - 0.5) * 2;
+    H = catmullRom(pts, seg, lt);
   }
   // 連続する軌跡(コメットの尾)。小節/拍子が変わっても繋がる。瞬間移動しない
   const nowt = performance.now() / 1000;
   if (phase) trailBuf.push([H[0], H[1], nowt]); else trailBuf = [];
-  while (trailBuf.length && nowt - trailBuf[0][2] > 0.78) trailBuf.shift();
+  while (trailBuf.length && nowt - trailBuf[0][2] > 0.28) trailBuf.shift();
   $('fig-trail').setAttribute('points', trailBuf.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
-  // 打点の星: 現在拍の打点に到達した瞬間(frac小)に、発光フィルタ+拡大でパッと光らせる
-  const dotLitC = dark ? '#fff' : '#506D2F';  // leaves背景=白く発光 / marble=濃い緑
-  svg.querySelectorAll('.fig-dot').forEach(s => {
-    const sj = +s.dataset.j;
-    const lit = phase && phase.j === sj && phase.frac < 0.22;
-    s.setAttribute('fill', lit ? dotLitC : dotOffC);
-    s.setAttribute('opacity', lit ? '1' : '0.35');
-    if (lit) {
-      const c = B[sj];
-      s.setAttribute('filter', 'url(#dot-glow)');
-      s.setAttribute('transform', `translate(${c[0].toFixed(1)},${c[1].toFixed(1)}) scale(1.95) translate(${(-c[0]).toFixed(1)},${(-c[1]).toFixed(1)})`);
-    } else { s.removeAttribute('filter'); s.removeAttribute('transform'); }
-  });
-  // くまは指揮棒を持ち、棒の先端が打点Hをなぞる。前足(握り)はHの少し下 = H + PAW_OFF。
-  // 右腕: 肩(SHO)を支点に回転+伸縮させ、前足の先(スプライトの手先)を握り位置に乗せる。
-  // 棒(と腕)が胴体と同色でも、暗い棒+白い先端で動きがはっきり見える。停止時は静止ポーズ。
-  const baton = $('bear-baton'), tip = $('bear-tip');
-  if (phase) {
-    const paw = [H[0] + PAW_OFF[0], H[1] + PAW_OFF[1]];
-    const vx = paw[0] - SHO[0], vy = paw[1] - SHO[1];
-    const kx = Math.max(0.28, Math.min(0.95, Math.hypot(vx, vy) / ARM_LEN));  // 伸縮(クランプ)
-    const ang = Math.atan2(vy, vx) * 180 / Math.PI;
-    $('bear-arm-r').setAttribute('transform',
-      `translate(${SHO[0]},${SHO[1]}) rotate(${ang.toFixed(2)}) scale(${kx.toFixed(3)},${ARM_TH}) translate(${-ARM_PIV[0]},${-ARM_PIV[1]})`);
-    baton.setAttribute('x1', paw[0].toFixed(1)); baton.setAttribute('y1', paw[1].toFixed(1));
-    baton.setAttribute('x2', H[0].toFixed(1));   baton.setAttribute('y2', H[1].toFixed(1));
-    tip.setAttribute('cx', H[0].toFixed(1));      tip.setAttribute('cy', H[1].toFixed(1));
-    baton.style.display = tip.style.display = '';
-  } else {
-    $('bear-arm-r').setAttribute('transform', BEAR_T);  // 静止ポーズ(腕を右へ下ろした素の絵)
-    baton.style.display = tip.style.display = 'none';
+  // 打点でキラッ: 新しい拍に入った瞬間だけ、打点位置で一瞬ひかる(常時の星ではない)
+  const spark = $('fig-spark');
+  if (spark) {
+    if (phase) {
+      const bk = phase.k + '.' + phase.j;
+      if (bk !== lastSparkBeat) { lastSparkBeat = bk; sparkT = nowt; sparkPos = [H[0], H[1]]; }
+    }
+    const age = sparkT >= 0 ? nowt - sparkT : 9;
+    if (age < 0.33) {
+      const p = age / 0.33;  // 0→1 で拡大しながらフェード
+      spark.setAttribute('fill', theme === 'leaves' ? '#fff' : '#ffb300');
+      spark.setAttribute('transform', `translate(${sparkPos[0].toFixed(1)},${sparkPos[1].toFixed(1)}) scale(${(0.4 + p * 1.6).toFixed(2)}) rotate(${(p * 80).toFixed(0)})`);
+      spark.setAttribute('opacity', (0.9 * (1 - p)).toFixed(2));
+    } else spark.setAttribute('opacity', '0');
   }
+  // 全身の沈み込み(bounce)と頭のうなずき: 打点(frac0)で最も沈む/うなずく。1拍目は深く
+  const sinkAmt = ((phase && phase.j === 0) ? 10 : 6) * st.sink;
+  const dy = phase ? sinkAmt * (0.5 + 0.5 * Math.cos(2 * Math.PI * phase.frac)) : 0;
+  const nod = phase ? (phase.j === 0 ? 5 : 3) * st.nod * (0.5 + 0.5 * Math.cos(2 * Math.PI * phase.frac)) : 0;
+  const bt = `translate(0 ${dy.toFixed(1)}) ${BEAR_T}`;
+  ['k-leg-r', 'k-leg-l', 'k-body'].forEach(id => { const e = $(id); if (e) e.setAttribute('transform', bt); });
+  const neckW = toW(NECK[0], NECK[1]);  // 頭は首を支点にうなずく(+ bounceで一緒に沈む)
+  const head = $('k-head');
+  if (head) head.setAttribute('transform', `translate(0 ${dy.toFixed(1)}) rotate(${nod.toFixed(2)} ${neckW[0].toFixed(1)} ${neckW[1].toFixed(1)})`);
+  // 右腕: 肩(RSHO)支点で、手先(RPAW)が打点Hに乗るよう回転+伸縮。腕の長さは ext=肩→打点距離/元の腕長
+  const rshoW = toW(RSHO[0], RSHO[1]), rpawW = toW(RPAW[0], RPAW[1]);
+  const base = Math.hypot(rpawW[0] - rshoW[0], rpawW[1] - rshoW[1]);
+  const a0 = Math.atan2(rpawW[1] - rshoW[1], rpawW[0] - rshoW[0]);  // 元の肩→手先角
+  const armR = $('k-arm-r');
+  if (phase) {
+    const aH = Math.atan2(H[1] - rshoW[1], H[0] - rshoW[0]);        // 肩→打点角
+    const ext = Math.max(0.5, Math.min(1.4, Math.hypot(H[0] - rshoW[0], H[1] - rshoW[1]) / base));  // 腕の伸縮(奥行き)
+    const rot = (aH - a0) * 180 / Math.PI;
+    if (armR) armR.setAttribute('transform',
+      `translate(${rshoW[0].toFixed(1)} ${rshoW[1].toFixed(1)}) rotate(${rot.toFixed(2)}) scale(${ext.toFixed(3)}) translate(${(-rshoW[0]).toFixed(1)} ${(-rshoW[1]).toFixed(1)}) ${BEAR_T}`);
+  } else {
+    if (armR) armR.setAttribute('transform', BEAR_T);  // 静止ポーズ
+  }
+  // 左腕: 肩(LSHO)を支点に、拍で軽くキュー(ダウンビートで少し上げる)
+  const armL = $('k-arm-l'), lshoW = toW(LSHO[0], LSHO[1]);
+  const swing = phase ? (phase.j === 0 ? -10 : -4) * st.cue * (0.5 + 0.5 * Math.cos(2 * Math.PI * phase.frac)) : 0;
+  if (armL) armL.setAttribute('transform', `rotate(${swing.toFixed(2)} ${lshoW[0].toFixed(1)} ${lshoW[1].toFixed(1)}) ${BEAR_T}`);
 }
 
 // metro/bear ビューで楽譜ミニストリップを描画(今の段をキャンバスに切り出しハイライト)
@@ -1495,7 +1497,7 @@ $('rename').onclick = async () => {
   if (name === null) return;
   currentPieceName = name || currentPieceName || autoName();
   await savePiece();
-  $('tool-hint').textContent = `✏ 「${currentPieceName}」に変更しました`;
+  $('tool-hint').textContent = `「${currentPieceName}」に変更しました`;
 };
 
 ['loop', 'loopA', 'loopB'].forEach(id => $(id).oninput = $(id).onchange = updateLoopHighlight);
@@ -1541,6 +1543,9 @@ window.addEventListener('keydown', e => {
 
 // 起動時: テーマ適用 + ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
 applyTheme();
+// メトロノーム音は初期オフ。設定で有効化し localStorage に記憶
+if (localStorage.getItem('kuma_snd') === '1') $('snd').checked = true;
+$('snd').onchange = () => localStorage.setItem('kuma_snd', $('snd').checked ? '1' : '0');
 loadLibrary();
 const params = new URLSearchParams(location.search);
 // 再生ビュー(譜読み/メトロノーム/しきくま)を先に反映 → enterPlay の switchView で復元される
