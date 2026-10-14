@@ -207,7 +207,9 @@
   #review-panel .rv-name input { padding: 6px 8px; border: 1.5px solid var(--brown); border-radius: 0;
                                  font-size: 14px; width: 200px; background: #fff; color: var(--bark); font-weight: 400; }
   #review-panel #undo { font-size: 22px; line-height: 1; padding: 0 18px; min-width: 60px;
-                        background: var(--marble); color: var(--bark); border: 1.5px solid var(--brown); }
+                        background: var(--marble); color: var(--bark); border: 1.5px solid var(--brown);
+                        display: inline-flex; align-items: center; justify-content: center; }
+  #review-panel #undo svg { display: block; }
   /* 練習へ(楽譜の下・右寄せ)。TOPの緑ボタン(top-fill)デザインを流用 */
   #review-foot { width: 100%; max-width: 900px; display: flex; justify-content: flex-end; padding: 12px 8px 20px; }
   #review-foot .rv-play { width: auto; min-width: 240px; }
@@ -233,7 +235,9 @@
                                      display: inline-block; white-space: nowrap; }
   #transport .tbtns { display: flex; gap: 20px; justify-content: center; align-items: center; margin-top: 10px; }
   .round { width: 72px; height: 72px; border-radius: 50%; border: none; cursor: pointer;
-           font-size: 30px; line-height: 1; color: #fff; background: var(--accent); box-shadow: 0 3px 10px #0002; }
+           font-size: 30px; line-height: 1; color: #fff; background: var(--accent); box-shadow: 0 3px 10px #0002;
+           display: inline-flex; align-items: center; justify-content: center; }
+  .round svg, #settings-btn svg { display: block; }
   .round:active { transform: translateY(1px); }
   .round.playing { background: var(--accent-dark); }
   .round.small { width: 56px; height: 56px; font-size: 24px; background: #fff; color: var(--accent);
@@ -305,7 +309,7 @@
       <option value="metro">メトロノーム</option>
       <option value="bear">しきくま</option>
     </select>
-    <button id="settings-btn" class="btn sub" title="設定">⚙</button>
+    <button id="settings-btn" class="btn sub" title="設定" aria-label="設定"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.13.24.42.32.59.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54c.05.24.25.41.48.41h3.84c.23 0 .43-.17.48-.41l.36-2.54c.58-.24 1.12-.56 1.62-.94l2.39.96c.17.1.46.02.59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></button>
     <!-- JS参照用(UI非表示) -->
     <button id="play" class="hidden"></button>
     <button id="restart" class="hidden"></button>
@@ -333,7 +337,7 @@
         <button id="tool-split" class="btn sub tool">分割</button>
         <button id="tool-merge" class="btn sub tool">結合</button>
       </div>
-      <button id="undo" class="btn sub" disabled title="戻す">↩</button>
+      <button id="undo" class="btn sub" disabled title="戻す" aria-label="戻す"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8 4 12 8 16"/><path d="M4 12h11a4 4 0 0 1 4 4v2"/></svg></button>
     </div>
     <span id="tool-hint"></span>
     <span class="rv-legend"><span class="rv-swatch"></span> = AI自信なし(要確認)</span>
@@ -356,8 +360,8 @@
     <div id="transport" class="hidden">
       <div class="tempo-line" id="tempo-line" title="クリックでテンポ設定"><span id="big-note">♩</span>= <span id="big-bpm">136</span><span class="pre-note">前振り <span id="big-preN">4</span>拍</span></div>
       <div class="tbtns">
-        <button id="big-restart" class="round small" title="最初に戻す">⏮</button>
-        <button id="big-play" class="round" title="再生 / 一時停止">▶</button>
+        <button id="big-restart" class="round small" title="最初に戻す" aria-label="最初に戻す"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M6 6h2.2v12H6z"/><path d="M20 6v12l-9-6z"/></svg></button>
+        <button id="big-play" class="round" title="再生 / 一時停止" aria-label="再生 / 一時停止"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
       </div>
     </div>
   </div>
@@ -1492,7 +1496,12 @@ function makePlayer(input) {
   player = new YT.Player('yt', { width: 400, height: 225, videoId: videoId(input) });
 }
 function startAudio() {
-  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    // NOTE: iOSはWeb Audioを「着信音(ringer)」チャンネルで鳴らすため、マナーモード(消音スイッチ)
+    //   だと音が消される。audioSession を 'playback' にすると消音スイッチの影響を受けず鳴る(iOS16.4+)。
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  }
   actx.resume();
 }
 
@@ -1504,7 +1513,7 @@ function startAnaTimer() {
   stopAnaTimer();
   const tickSub = () => {
     const s = Math.floor((Date.now() - anaStart) / 1000);
-    if ($('ana-sub')) $('ana-sub').textContent = `⏱ ${s}秒 — AIが読み取り中(1〜2分かかることがあります)`;
+    if ($('ana-sub')) $('ana-sub').textContent = `⏱ ${s}秒 — 指揮くまAIエージェントが読み取り中！`;
   };
   tickSub();
   anaTimer = setInterval(tickSub, 1000);
@@ -1715,6 +1724,9 @@ function resumeSolo() {
   nextPre = preClicks.findIndex(x => x >= t); if (nextPre < 0) nextPre = preClicks.length;
   lastT = t; current = -1; playing = true;
 }
+// 再生/一時停止アイコン(SVG)。iOSで ▶⏸ が絵文字化するのを避けるため文字でなくSVGを使う
+const ICON_PLAY = '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>';
 // 再生ボタンの見た目を状態に合わせる(毎フレーム呼ぶが、変化時だけ描く)
 function updatePlayUI() {
   const on = isPlaying();
@@ -1725,7 +1737,7 @@ function updatePlayUI() {
   const label = on ? '⏸一時停止' : (pausedAt != null ? '▶再開' : '▶再生');
   if ($('play')) $('play').textContent = label;
   const bp = $('big-play');
-  if (bp) { bp.textContent = on ? '⏸' : '▶'; bp.classList.toggle('playing', on); }
+  if (bp) { bp.innerHTML = on ? ICON_PAUSE : ICON_PLAY; bp.classList.toggle('playing', on); }
   if ($('big-preN')) $('big-preN').textContent = $('preN').value;
   const pn = document.querySelector('#transport .pre-note');
   if (pn) pn.classList.toggle('hidden', !pre);  // 前拍オフなら「前振り N拍」を隠す
