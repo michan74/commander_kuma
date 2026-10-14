@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>指揮者っくま</title>
+<title>Bearstro</title>
 <style>
   /* カラーパレット(森×都市のモダン)。色変更は基本ここだけで済むよう変数化 */
   :root {
@@ -269,10 +269,10 @@
   <div class="sp2-card">
     <div class="sp2-head">正しく振るために確認させて！</div>
     <p class="sp2-note" id="sp2-note">このページの冒頭、拍子が読み取りにくいところがありました。<br>開始の<b>拍子</b>と<b>テンポ</b>を教えてください。</p>
-    <label class="sp2-field">開始の拍子
+    <label class="sp2-field" id="st-ts-row">開始の拍子
       <span><input id="st-num" type="number" min="1" value="4"> <b>/</b> <input id="st-den" type="number" min="1" value="4"></span>
     </label>
-    <label class="sp2-field">テンポ
+    <label class="sp2-field" id="st-tempo-row">テンポ
       <span>
         <select id="st-unit">
           <option value="1">♩ = 4分</option>
@@ -308,9 +308,9 @@
       <strong>設定</strong>
       <button id="settings-close" class="kp-close" title="閉じる">×</button>
     </div>
-    <label class="sp-row"><input id="snd" type="checkbox"> メトロノーム音(初期=なし)</label>
+    <label class="sp-row"><input id="snd" type="checkbox"> メトロノーム音</label>
     <label class="sp-row"><input id="pre" type="checkbox" checked> 前拍あり <input id="preN" type="number" value="4" readonly style="width:36px;border:none;background:transparent;color:#888">拍</label>
-    <label class="sp-row"><input id="theme-toggle" type="checkbox"> 森の背景(暗め)</label>
+    <!-- <label class="sp-row"><input id="theme-toggle" type="checkbox"> ダークモード</label> -->
     <label class="sp-row"><input id="loop" type="checkbox"> ループ</label>
     <div class="sp-row" id="loop-range-row">
       <span style="color:#888;font-size:13px">小節</span>
@@ -596,19 +596,51 @@ function markMergeSel() {
 }
 
 // ---- 自律: 開始情報(拍子・テンポ)の確認 ----
-// 継続ページなどで開始の拍子が読めず低信頼のとき、くまが人に聞いてから振る(human-in-the-loop)
+// triage(read_start.py)が「読めなかった」と言った項目だけを、くまが人に聞く(human-in-the-loop)
+let startInfo = null;   // 直近の start.json(サーバの triage 結果)
+let startResolve = null;
+
+// 保険の判定。解析前に triage を通らなかった経路(保存済みの復元・サンプル)で使う
 function needStartConfirm() {
   const m0 = meter.measures[0];
-  return !!(m0 && m0.confidence !== undefined && m0.confidence < 1);
+  if (!m0) return false;
+  // NOTE: ts_source が無い=旧フォーマットの保存データ。新条件(tempo anchor が要る等)を当てると
+  //   既存の保存曲すべてでポップアップが出てしまうので、従来の confidence 条件のままにする
+  if (m0.ts_source === undefined) return m0.confidence !== undefined && m0.confidence < 1;
+  // 1小節目が「前から引き継いだ」「手がかり無し」= この写真から開始の拍子が読めていない。
+  //   2小節目以降の carried は正常(拍子は変わるときだけ印刷される)ので判定には使わない
+  return ['carried', 'unknown'].includes(m0.ts_source) || !(m0.tempo > 0);
 }
-function openStartPopup() {
-  const m0 = meter.measures[0] || { ts: '4/4' };
-  const [n, d] = m0.ts.split('+')[0].split('/');
+
+// NOTE: 推測を言わない。「2枚目だね」のような当て推量はしない(1枚目でも3枚目でも、
+//   最初の小節に記載が無いことはある)。言うのは「どこが」「何が」わからないかだけ。
+function startAskText(start, ask) {
+  const n = start && start.first_measure_number;
+  const where = (!n || n === 1) ? '始めの' : `${n}小節目の`;
+  const what = ask.includes('ts') && ask.includes('tempo') ? '拍子とテンポ'
+    : ask.includes('ts') ? '拍子' : 'テンポ';
+  const zoomed = !!(start && (start.attempts || []).some(a => a.pass === 'zoom'));
+  return (zoomed ? '大きくして見てみたけど、わからなかったっくま。<br>' : '')
+    + `<b>${where}${what}</b>がわからないっくま。教えて！`;
+}
+
+// 読めなかった項目だけ表示して聞く。答え({ts, tempo, unit, tempo_text})で解決する Promise を返す
+function askStart(start) {
+  const ask = (start && start.ask && start.ask.length) ? start.ask : ['ts', 'tempo'];
+  $('st-ts-row').classList.toggle('hidden', !ask.includes('ts'));
+  $('st-tempo-row').classList.toggle('hidden', !ask.includes('tempo'));
+  $('sp2-note').innerHTML = startAskText(start, ask);
+  // AIが読めていた値は事前入力しておく(読めた項目は聞かないので、ここは主に既定値)
+  // NOTE: 解析前(アップロード直後)に聞く経路では meter がまだ無い。meter に触る前に必ず確かめる
+  const m0 = (meter && meter.measures && meter.measures[0]) || {};
+  const ts = (start && start.ts && start.ts.value) || m0.ts || '4/4';
+  const [n, d] = String(ts).split('+')[0].split('/');
   $('st-num').value = parseInt(n) || 4;
   $('st-den').value = parseInt(d) || 4;
   $('st-unit').value = '1';
   $('st-bpm').value = $('tempo').value;
   $('startpopup').classList.remove('hidden');
+  return new Promise(res => { startResolve = res; });
 }
 // 確定した開始の拍子を、先頭から続く「同じ拍子だった小節(=誤って引き継がれた分)」に伝播
 function recascadeStart(ts, beats) {
@@ -622,19 +654,35 @@ function recascadeStart(ts, beats) {
     } else break;  // 別の拍子が現れたら伝播を止める
   }
 }
+const UNIT_NAME = { '1': 'quarter', '2': 'half', '0.5': 'eighth', '1.5': 'dotted_quarter' };
 $('st-ok').onclick = () => {
   const n = parseInt($('st-num').value) || 4, d = parseInt($('st-den').value) || 4;
-  const ts = n + '/' + d;
-  const unit = parseFloat($('st-unit').value) || 1;  // 4分換算係数(2分=2, 8分=0.5, 付点4分=1.5)
-  const bpm = Math.max(20, Math.round((parseFloat($('st-bpm').value) || 136) * unit));
-  $('tempo').value = bpm; $('big-bpm').textContent = bpm;
-  recascadeStart(ts, beatsOf(ts));
+  const u = $('st-unit').value;
+  const unit = parseFloat(u) || 1;  // 4分換算係数(2分=2, 8分=0.5, 付点4分=1.5)
+  const raw = Math.max(20, parseFloat($('st-bpm').value) || 136);
+  const ask = (startInfo && startInfo.ask && startInfo.ask.length) ? startInfo.ask : ['ts', 'tempo'];
+  const answer = {};
+  if (ask.includes('ts')) answer.ts = n + '/' + d;
+  if (ask.includes('tempo')) {
+    answer.tempo = Math.round(raw * unit);   // サーバ・meter は4分換算で持つ
+    answer.unit = UNIT_NAME[u] || 'quarter';
+    answer.tempo_text = $('st-unit').selectedOptions[0].textContent.trim() + ' = ' + raw;
+  }
   startConfirmed = true;
   $('startpopup').classList.add('hidden');
+  if (startResolve) { const r = startResolve; startResolve = null; r(answer); }
+};
+
+// 人の答えを手元の meter に反映する(保険の経路。解析前に聞けた場合はサーバ側で反映済み)
+function applyStartAnswer(answer) {
+  if (answer.tempo) { $('tempo').value = answer.tempo; $('big-bpm').textContent = answer.tempo; }
+  if (answer.ts) recascadeStart(answer.ts, beatsOf(answer.ts));
+  const m0 = meter.measures[0];
+  if (m0 && answer.tempo) { m0.tempo = answer.tempo; m0.tempo_source = 'user'; }
+  if (m0 && answer.ts) m0.ts_source = 'user';
   renderPolys();  // 低信頼(紫破線)の解除をラベルに反映
   persist();      // 開始情報の確定も自動保存
-  enterPlay();    // 確認が済んだので再生へ(今度はガードを通過)
-};
+}
 
 // ---- モード切替(調節 / 再生) ----
 function enterReview() {
@@ -651,8 +699,11 @@ function enterReview() {
 }
 function enterPlay() {
   if (!$('editor').classList.contains('hidden')) $('e-close').onclick();
-  // 自律: 開始の拍子が低信頼(=読み取りにくい継続ページ等)なら、振る前に人へ確認する
-  if (!startConfirmed && needStartConfirm()) { openStartPopup(); return; }
+  // 保険: 解析前に聞けなかった経路(保存済みの復元・サンプル)で開始情報が不明なら、振る前に聞く
+  if (!startConfirmed && needStartConfirm()) {
+    askStart(startInfo).then(a => { applyStartAnswer(a); enterPlay(); });
+    return;
+  }
   appMode = 'play';
   document.body.classList.remove('review-mode');
   $('review-ctrls').classList.add('hidden');
@@ -919,7 +970,7 @@ function catmullRom(pts, i, t) {
 
 // しきくま: パーツ分割スプライト(2360x1640 同一キャンバス)を重ねた立ち絵。各パーツを支点で動かす
 let bearSig = '', trailBuf = [];
-let sparkT = -1, sparkPos = [0, 0], lastSparkBeat = '';  // 打点のキラッ(発火時刻・位置・直近拍)
+let sparkT = -1, sparkPos = [0, 0], lastSparkBeat = '', sparkStrong = false;  // 打点のキラッ(発火時刻・位置・直近拍・強拍か)
 // 採寸(canvas座標, 推定=要調整): 立ち絵中心(1157,907) / 右腕 肩(990,775)→手先(650,935) / 左腕 肩(1350,860) / 首(1142,840)
 const KSC = 0.36;  // キャンバス→SVG の縮尺(立ち絵高さ~1046 を ~380 に)
 const KOX = 210 - 1157 * KSC, KOY = 210 - 907 * KSC;  // 立ち絵中心をSVG中央(210,210)へ
@@ -956,7 +1007,14 @@ function applyTheme() {
 // ★ここを曲・小節・拍(phase)ごとに AI が決めると「指揮者エージェント」になる(今は既定値)。
 // 例: 強拍は width/sink を上げる、フレーズ終わりは curve(ため)を足す、クレッシェンドで徐々に width↑
 function condStyle(phase) {
-  return { width: 1, sink: 1, nod: 1, cue: 1, curve: 0 };
+  const strong = !!(phase && phase.j === 0);  // ダウンビート(1拍目)=強拍
+  return {
+    width: 1,                    // 振り幅(図形スケール)は小節一定(拍ごとに変えると軌道が飛ぶため据え置き)
+    sink:  strong ? 1.5 : 0.65,  // 体の沈み込み: 強拍は深く、弱拍は浅く
+    nod:   strong ? 1.4 : 0.7,   // うなずき: 強拍は大きく
+    cue:   strong ? 1.3 : 0.7,   // 左手: 強拍で動く
+    curve: 0,
+  };
 }
 function updateBear(phase) {
   const svg = $('bear-svg');
@@ -1002,13 +1060,13 @@ function updateBear(phase) {
   if (spark) {
     if (phase) {
       const bk = phase.k + '.' + phase.j;
-      if (bk !== lastSparkBeat) { lastSparkBeat = bk; sparkT = nowt; sparkPos = [H[0], H[1]]; }
+      if (bk !== lastSparkBeat) { lastSparkBeat = bk; sparkT = nowt; sparkPos = [H[0], H[1]]; sparkStrong = phase.j === 0; }
     }
     const age = sparkT >= 0 ? nowt - sparkT : 9;
     if (age < 0.33) {
       const p = age / 0.33;  // 0→1 で拡大しながらフェード
       spark.setAttribute('fill', theme === 'leaves' ? '#fff' : '#ffb300');
-      spark.setAttribute('transform', `translate(${sparkPos[0].toFixed(1)},${sparkPos[1].toFixed(1)}) scale(${(0.4 + p * 1.6).toFixed(2)}) rotate(${(p * 80).toFixed(0)})`);
+      spark.setAttribute('transform', `translate(${sparkPos[0].toFixed(1)},${sparkPos[1].toFixed(1)}) scale(${(0.4 + p * (sparkStrong ? 2.3 : 1.2)).toFixed(2)}) rotate(${(p * 80).toFixed(0)})`);
       spark.setAttribute('opacity', (0.9 * (1 - p)).toFixed(2));
     } else spark.setAttribute('opacity', '0');
   }
@@ -1223,14 +1281,33 @@ function startAudio() {
 $('analyze').onclick = async () => {
   const f = $('file').files[0];
   if (!f) { $('up-status').textContent = '写真を選んでください'; return; }
-  $('up-status').textContent = '解析中… (小節検出 → Geminiが拍子を読み取り、数十秒)';
   $('analyze').disabled = true;
   try {
+    // 前段: 小節検出 + triage(開始の拍子・テンポが読めるか)。約10秒
+    $('up-status').textContent = '小節を検出中…';
     const fd = new FormData(); fd.append('file', f);
-    const res = await fetch('/process', { method: 'POST', body: fd });
+    const res = await fetch('/process/detect', { method: 'POST', body: fd });
     if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-    const data = await res.json();
-    currentJob = data.job; currentPiece = null; currentPieceName = autoName();
+    const first = await res.json();
+    currentJob = first.job; currentPiece = null; currentPieceName = autoName();
+    startInfo = first.start || null;
+
+    // 読めなかった項目だけ人に聞く。答えは後段のプロンプトに渡るので、AIは推測せずに済む
+    let answer = {};
+    if (startInfo && startInfo.status === 'ask') {
+      $('up-status').textContent = 'わからないところがあるっくま…';
+      answer = await askStart(startInfo);
+    }
+
+    // 後段: 全小節の拍子・テンポを読む。数十秒
+    $('up-status').textContent = '解析中… (Geminiが拍子とテンポを読み取り、数十秒)';
+    const res2 = await fetch(`/process/read/${first.job}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(answer),
+    });
+    if (!res2.ok) throw new Error((await res2.json()).error || res2.statusText);
+    const data = await res2.json();
+    startInfo = data.start || startInfo;
     initFromData(data.image, data.overlay, data.meter, null);
     savePiece();  // 解析したら自動でライブラリに保存(未保存状態を作らない)
   } catch (e) {
@@ -1260,6 +1337,7 @@ async function loadFromJob(job) {
     if (!res.ok) throw new Error('not found');
     const data = await res.json();
     currentJob = job; currentPiece = null;
+    startInfo = data.start || null;
     initFromData(data.image, data.overlay, data.meter, null, 'play');
   } catch (e) { /* ジョブが無ければアップロード画面のまま */ }
 }

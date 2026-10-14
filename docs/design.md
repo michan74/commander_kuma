@@ -168,10 +168,12 @@ triage で開始情報を確定しても、本読みが曲の**途中**で拍子
 
 既存の `needStartConfirm()` は `confidence < 1` を条件にしているが、これは機能しない。
 
-* `confidence` は self-consistency の多数決率(`cnt / runs`, `read_meter.py:147`)
-* `METER_RUNS` はリポジトリのどこにも設定が無く既定 `1` → **confidence は常に 1.0** で発火しない
-* 仮に `METER_RUNS=3` にしても今回のケースは救えない。「AIが迷った」のではなく
+* `confidence` は self-consistency の多数決率(`cnt / runs`, `read_meter.py`)
+* **`METER_RUNS=3` でも今回のケースは救えない。** 「AIが迷った」のではなく
   「画像に情報が無い」ので、3回とも自信満々に同じ 4/4 を答えて一致する
+  > NOTE: `METER_RUNS` はリポジトリ内に設定が無く既定は `1` だが、ローカルの `kuma-web` は
+  > 起動時の環境変数で `3` を渡している(`docker inspect` で確認)。Cloud Run(`scripts/deploy.sh`)は
+  > 渡していないので既定の `1`。環境によって confidence の意味が変わる点に注意。
 
 → **信頼度は「わからない」の指標として原理的に使えない。** 出処を別の軸で持つ。
 
@@ -545,8 +547,8 @@ anchor:  ♩=268   -      -    ♩=120    -      -
   4分音符単位。𝅗𝅥=134 のような単位は `UNIT_FACTOR` で吸収し、フロントには4分換算BPMだけ渡す。
   表記は `text` に残して人の確認に使う。
 * **`confidence` は残すが、はしごの判定には使わない**。紫破線の「要確認」導線としては有効。
-  ただし `METER_RUNS` 既定1回では常に 1.0 である事実を `docs/pipeline.md` に明記する
-  (現状のドキュメントは「self-consistency=3回多数決」と書いてあり実態と違う)。
+  ただし `METER_RUNS` の既定は `1`(= confidence は常に 1.0)で、3回読むかは**起動時の環境変数しだい**
+  という事実を `docs/pipeline.md` に明記する(ローカル `kuma-web` は 3、Cloud Run は既定の 1)。
 * **小節の区切り自体は今回の対象外**。区切りは段階1(OpenCV)＋調節画面の✂分割/⇔結合で扱う(既存)。
   triage が担うのは「区切りを理解するのに必要な拍子・テンポ」の側。
 * **曲中のテンポ変化の人手補正は今回やらない**。AIが読んだ anchor をそのまま使う。

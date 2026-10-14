@@ -31,6 +31,9 @@
   小節ごと多数決+信頼度(=多数派票/回数)。低信頼(割れた)小節を**紫破線**でマーク→ダブルクリックで補正に誘導。
 - [x] ~~**補正の永続化**~~ → **実装**(2026-10-12)。`/save/{job}` が枠(overlay)+拍子(meter)の両方を `overlay_corrected.json` / `meter_corrected.json` に保存。`job_data` が corrected を優先ロード。サンプルは localStorage。
 - [ ] **self-consistency のコスト削減**。3回=3倍。案: `METER_RUNS=2` に落とす / 1回目で割れそうな所だけ再読。
+  - **`METER_RUNS` は起動時の環境変数しだい**(コードの既定は `1`)。ローカル `kuma-web` は `3`、
+    Cloud Run(`scripts/deploy.sh`)は渡していないので `1`。**本番とローカルで信頼度の意味が違う**ので、
+    どちらかに揃えるか `deploy.sh` に明示する。
 - [ ] **(保留)triage の self-consistency**。`read_start.py` は1回しか読まない。`tmp/ダンス1楽章2枚目.jpeg`
   (拍子記号に鉛筆の丸が重なっている)で6回中2回 `6/4` と誤読する(正解 `4/4`)。`printed` 扱いなので
   人に聞かずに進み、誤った開始拍子が carry-forward で全小節に伝播する。
