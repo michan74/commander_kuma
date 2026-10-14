@@ -136,19 +136,28 @@ def detect_staves(binary, space, min_span=0.3):
     return staves
 
 
-def straighten(img, staff, space):
-    """段を切り出して水平に回す。回した後の五線の上端・下端(xごと)も返す"""
+def straighten(img, staff, space, xmargin=2, ytop=4, ybot=4):
+    """段を切り出して水平に回す。回した後の五線の上端・下端(xごと)も返す
+
+    マージンは space の倍数。既定は検出用の狭い値で、AIに渡す画像を作るときは広げて呼ぶ
+    (detect_measures.py の wide_NN.jpg)。
+
+    NOTE: 上下は別々に指定する。テンポ表示は「かかる小節の真上」に書かれるので、
+    上だけ広げれば各段が自分にかかる表示を拾う。下も広げると同じ表示が隣り合う2段の画像に
+    写り、AIがどちらの段のものか決められなくなる(帰属が1小節ずれる・読みが不安定になる)。
+    """
     xs, top, bottom = staff["xs"], staff["top"], staff["bottom"]
     slope = np.polyfit(xs, (top + bottom) / 2, 1)[0]
     angle = float(np.degrees(np.arctan(slope)))
 
     ih, iw = img.shape[:2]
-    margin = int(space * 4)
-    # NOTE: 左マージンを狭く(space*2)するのは意図的。段の先頭の音部記号・調号(♯♭の縦棒)を
+    # NOTE: 検出用に左マージンを狭く(space*2)するのは意図的。段の先頭の音部記号・調号(♯♭の縦棒)を
     #   小節線検出から除外するため。広げると偽の小節線が増える(space*8で検証: 58→61)。
-    #   クレフが少し切れるが、拍子記号は五線の右側にあり失われないので実害なし
-    x0, x1 = max(0, int(xs[0] - space * 2)), min(iw, int(xs[-1] + space * 2))
-    y0, y1 = max(0, int(top.min() - margin)), min(ih, int(bottom.max() + margin))
+    #   AI入力用は逆に広げる(テンポ表示・拍子記号が切れるため)。検出とAI入力で分ける(decouple)
+    # NOTE: top.min() / bottom.max() は x 方向の全域での極値。紙の歪みで段の途中が上下にずれても、
+    #   一番外側に合わせて切るので取りこぼさない
+    x0, x1 = max(0, int(xs[0] - space * xmargin)), min(iw, int(xs[-1] + space * xmargin))
+    y0, y1 = max(0, int(top.min() - space * ytop)), min(ih, int(bottom.max() + space * ybot))
     crop = img[y0:y1, x0:x1]
     ch, cw = crop.shape[:2]
     m = cv2.getRotationMatrix2D((cw / 2, ch / 2), angle, 1.0)

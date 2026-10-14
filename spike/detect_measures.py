@@ -11,6 +11,12 @@ from staves import detect_staves, measure_ruler, quality, straighten
 # TODO: エラーにする閾値は仮の値。読めない写真の例を集めて決める
 #   dance.jpeg(読める写真)の実測: 曲がり 0.10〜2.16、検出率 0.43〜0.78
 MIN_SPACE_PX = 8
+# AI入力用(wide_NN.jpg)のマージン。検出用の既定(x=2, y=4)より広く取り、
+# 段の上に書かれるテンポ表示と、段の先頭の音部記号・調号・拍子記号を入れる。
+# NOTE: 下は広げない(検出用と同じ)。テンポ表示はかかる小節の真上に書かれるので、
+#   上だけ広げれば各段が自分の表示を拾う。下も広げると同じ表示が隣の段の画像にも写る
+WIDE_XMARGIN = 6
+WIDE_YTOP = 10
 MAX_CURVE = 3.0
 MIN_COVERAGE = 0.3
 MIN_WIDTH_RATIO = 0.8
@@ -37,6 +43,26 @@ def draw_staff(image, cands, boxes, start_index, splits):
         cv2.line(out, (s["x"], s["y0"]), (s["x"], s["y1"]), (255, 0, 255), 3)
         cv2.putText(out, f"D{s['id']}", (s["x"] + 4, s["y1"] + 34),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 255), 3)
+    return out
+
+
+def to_wide(boxes, st, wide):
+    """検出用(狭い)クロップの枠を、AI入力用(広い)クロップの座標へ移す。
+
+    どちらも元写真の回転なので、狭い→元写真→広い の順に変換する(draw_overview と同じ経路)。
+    """
+    inv = cv2.invertAffineTransform(st["matrix"])
+    ox, oy = st["crop"]["x"], st["crop"]["y"]
+    wx, wy = wide["crop"]["x"], wide["crop"]["y"]
+    out = []
+    for b in boxes:
+        corners = np.array([[b["x"], b["y"], 1], [b["x"] + b["w"], b["y"], 1],
+                            [b["x"] + b["w"], b["y"] + b["h"], 1], [b["x"], b["y"] + b["h"], 1]])
+        orig = corners @ inv.T + [ox, oy]
+        pts = np.hstack([orig - [wx, wy], np.ones((4, 1))]) @ wide["matrix"].T
+        x, y = pts[:, 0].min(), pts[:, 1].min()
+        out.append({"x": int(x), "y": int(y),
+                    "w": int(pts[:, 0].max() - x), "h": int(pts[:, 1].max() - y)})
     return out
 
 
@@ -99,6 +125,12 @@ def main():
         cv2.imwrite(str(out_dir / f"clean_{si:02d}.jpg"), st["image"])
         cv2.imwrite(str(out_dir / f"staff_{si:02d}.jpg"),
                     draw_staff(st["image"], cands, boxes, len(measures), splits))
+        # NOTE: wide_NN は read_meter.py に渡す広い段画像。狭いクロップだとテンポ表示
+        #   (五線の上に書かれる)が切れて 𝅗𝅥=134 を ♩=134 と誤読する(速さが半分になる)。
+        #   検出は狭いまま・AI入力だけ広げる(decouple)。枠は同じものを座標変換して描く
+        wide = straighten(img, staff, space, xmargin=WIDE_XMARGIN, ytop=WIDE_YTOP)
+        cv2.imwrite(str(out_dir / f"wide_{si:02d}.jpg"),
+                    draw_staff(wide["image"], [], to_wide(boxes, st, wide), len(measures), []))
         for b in boxes:
             measures.append({"index": len(measures), "staff": si, "bbox": b})
         straights.append(st)

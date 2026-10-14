@@ -3,7 +3,7 @@
 `docs/design.md` の実装計画をタスクに分解したもの。
 
 ## 進捗
-- 完了: 2 / 15 タスク
+- 完了: 10 / 16 タスク
 
 ---
 
@@ -35,7 +35,7 @@
 
 ### バックエンド: triage(①②)
 
-- [ ] 3. ページ頭のクロップを作る(AI なし・目視で確認)
+- [x] 3. ページ頭のクロップを作る(AI なし・目視で確認)
   - 対象: `spike/read_start.py`(新規)
   - 内容: `crop_head(img, staves, space, mode)` を実装する。元写真から自前に切り出す。
     - `mode="head"`: 写真の上端から1段目の下端(`crop.y + crop.h`)まで。幅は写真の全幅。**定数を使わない**
@@ -48,7 +48,7 @@
     - 継続: 小節番号・練習番号が入る
     - 回転は無し(元写真のまま)で文字が読めるか。読みにくければ回転の要否をここで判断する
 
-- [ ] 4. triage の AI 問い合わせを実装する(1パスのみ)
+- [x] 4. triage の AI 問い合わせを実装する(1パスのみ)
   - 対象: `spike/read_start.py`
   - 内容: `ItemRead`(`state` = printed/unreadable/absent, `value`, `unit`, `text`, `note`)と
     `StartTriage`(`page_position` = head/middle/unclear, `time_signature`, `tempo`)を定義。
@@ -62,7 +62,7 @@
     かつ `first_measure_number` に 314 等が入ること。
     `tmp/dance_movement.jpeg` では両方 `printed`(4/4・♩=134)で値が合っていること。
 
-- [ ] 5. はしごの判定と自律的な拡大再読を実装する
+- [x] 5. はしごの判定と自律的な拡大再読を実装する
   - 対象: `spike/read_start.py`
   - 内容: `decide(triage, zoomed) -> "proceed" | "zoom" | "ask"` を design.md の判定表どおりに実装し、
     `zoom` なら `mode="zoom"` で1回だけ読み直す(`zoomed` フラグでループを止める)。
@@ -75,7 +75,7 @@
 
 ### バックエンド: 本読み(read_meter)
 
-- [ ] 6. 曲中のテンポ表示を読む
+- [x] 6. 曲中のテンポ表示を読む
   - 対象: `spike/read_meter.py`
   - 内容: `TempoMark`(`index`, `value`, `unit`, `text`)を定義し `Result.tempos` に追加。
     プロンプトに「メトロノーム記号(♩=134 等)を見つけたら報告。`Allegro` だけの文字は報告しない」を足す。
@@ -83,7 +83,7 @@
     `tempo` / `tempo_text` / `tempo_source="printed"` を**anchor として**付ける(全小節に展開しない)。
   - 確認: テンポ変化のある写真で、変化する小節にだけ `tempo` が付くこと。
 
-- [ ] 7. 拍子の出処(`ts_source`)を申告させる
+- [x] 7. 拍子の出処(`ts_source`)を申告させる
   - 対象: `spike/read_meter.py`
   - 内容: `MeasureMeter` に `ts_source: str` を追加し、プロンプトで
     `printed` / `courtesy` / `carried` / `unknown` のどれで決めたかを答えさせる。
@@ -93,7 +93,7 @@
   - 確認: 読める写真で、拍子が変わる小節が `printed`、その後が `carried`、
     段をまたいで引き継いだ小節が `courtesy` になること。
 
-- [ ] 8. 確定した開始情報を本読みのヒントに渡す
+- [x] 8. 確定した開始情報を本読みのヒントに渡す
   - 対象: `spike/read_meter.py`
   - 内容: `load_start(out_dir)` で `start.json` を読み、`hint_text(start)` でプロンプトに差し込む文を作る
     (曲頭 / 継続ページで文面を変える。design.md の文例どおり)。
@@ -104,13 +104,13 @@
 
 ### バックエンド: API の分割
 
-- [ ] 9. `job_data` を meter 不在に耐えさせる
+- [x] 9. `job_data` を meter 不在に耐えさせる
   - 対象: `spike/server.py`
   - 内容: `meter_ai.json` が無ければ `"meter": None` を返す。`start.json` があれば `"start"` も返す。
   - 内容(理由): `/process/detect` の時点では meter がまだ無く、現状は無条件に読むので落ちる。
   - 確認: meter が無いジョブのディレクトリで `job_data()` が例外を投げないこと。
 
-- [ ] 10. `/process` を2段に分割する
+- [x] 10. `/process` を2段に分割する
   - 対象: `spike/server.py`
   - 内容: `POST /process/detect`(`detect_measures.py` → `export_overlay.py` → `read_start.py`。
     `{job, image, overlay, meter: null, start}` を返す)と
@@ -161,9 +161,24 @@
   - 確認: 保存済みの曲・サンプルを開いてポップアップが出ないこと(回帰)。
     `ts_source="unknown"` の meter を手で作ると出ること。
 
+- [ ] 15. 調節画面で拍子をまとめて変更できるようにする
+  - 対象: `web/index.html`(調節画面の拍子編集 / `recascadeStart`)
+  - 内容: 既存の `recascadeStart()`(**先頭から**同じ拍子が続く範囲を一括変更)を、
+    **任意の小節から**使えるように一般化する(`recascade(from, ts, beats)`)。
+    小節の拍子を変えた直後、後ろに同じ(変更前の)拍子が続いていれば
+    「後ろの N 小節も同じ拍子だっくま。まとめて変える？」と確認し、OK なら一括変更する。
+    - **既定では一括しない**。聞いてから実行する(勝手に大量変更しない)
+    - 一括変更した小節は `ts_source="user"` / `confidence=1` にする(紫破線を解除)
+    - 別の拍子が現れたらそこで止める(既存 `recascadeStart` と同じ)
+  - 理由: triage は1回しか読まないので、鉛筆の書き込み等で開始の拍子を誤読すると
+    carry-forward で**全小節が同じ誤った拍子**になる(`tmp/ダンス1楽章2枚目.jpeg` で6回中2回発生)。
+    1小節ずつ直すのは現実的でないため、まとめて直せることが「人が直す」方針の前提になる。
+  - 確認: 全小節が `6/4` の状態で1小節目を `4/4` に直すと、後続もまとめて `4/4` になること。
+    途中に別の拍子(`5/8` 等)があればそこで止まること。
+
 ### 通しの確認とドキュメント
 
-- [ ] 15. 通しで確認して docs を更新する
+- [ ] 16. 通しで確認して docs を更新する
   - 対象: `docs/pipeline.md` / `docs/spec.md` / `docs/todo.md`
   - 内容(確認): 2枚の写真で end-to-end を通す。
     - `tmp/ダンス２楽章.jpeg`(継続ページ): 聞かれて答えると **2/2・♩=268 で2拍振り**になること

@@ -19,10 +19,14 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field
 
+from tempo import quarter_bpm
+
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 PROMPT = """吹奏楽のパート譜の各段(五線1行)を、水平に切り出した画像を段の順に並べます。
 各画像にはオレンジの番号付きの長方形で「小節(枠)」を描いてあります。この番号が枠番号です。
+画像には上下にある隣の段も一部写っていますが、**拍子を答えるのはオレンジの枠がある段だけ**です。
+隣の段の拍子記号を読まないでください(テンポ表示は枠のある段の上下どちらに書かれていても構いません)。
 
 拍子記号(4/4, 5/8, 2/4 など)は、拍子が変わる小節の先頭にだけ印刷されます。
 枠に拍子記号の印刷が無ければ、その小節は前の小節と同じ拍子です。
@@ -31,7 +35,12 @@ PROMPT = """吹奏楽のパート譜の各段(五線1行)を、水平に切り�
 それがその段の最初の小節の拍子です。無ければ前の段の最後の小節と同じ拍子です。
 渡した段は順番に並んでいるので、前の段の情報を使って判断してください。
 
-渡したすべての枠番号について、その小節の拍子を答えてください。
+渡したすべての枠番号について、その小節の拍子と、それを「どこから決めたか」(ts_source)を答えてください。
+- printed: その枠に拍子記号が印刷されていた
+- courtesy: 前の段の末尾の予告拍子から判断した
+- carried: 画像に手がかりが無く、前の小節から引き継いだ
+- unknown: どこにも手がかりが無く推測した
+重要: 手がかりが無いときに 4/4 と推測して printed と答えないでください。unknown にしてください。
 - 1つの枠の途中で拍子が変わる(小節線の見落としで2小節が1枠に入っている)場合は、
   time_signature に "4/4+2/4" のように連結し、changes_midbox=true にしてください。
 - 分母が8の不規則拍子(5/8, 7/8 など)は、8分音符の連桁(ビーム=音符をつなぐ横棒)の区切りが
@@ -42,12 +51,31 @@ PROMPT = """吹奏楽のパート譜の各段(五線1行)を、水平に切り�
 
 さらに、各段の一番右(最後の小節線より後ろ)に、次の段への「予告の拍子記号」が小さく
 書かれていることがあります。見つけたら end_courtesies に {staff, ts} で報告してください
-(これは次の段の最初の小節の拍子になります)。無ければ空配列で構いません。"""
+(これは次の段の最初の小節の拍子になります)。無ければ空配列で構いません。
+
+テンポ表示(メトロノーム記号)も探してください。曲の途中で速さが変わるところに
+「♩=134」「𝅗𝅥=72」「♩.=60」のように書かれています。見つけたら tempos に
+{index(かかる小節の枠番号), value(数字), unit(音符の種類), text(書かれていた通りの表記)}
+で報告してください。無ければ空配列です。
+- **index は「その速さで演奏しはじめる小節」の枠番号**です。テンポ表示はかかる小節の
+  **真上**に書かれるので、表示の真下にある枠の番号を答えてください。
+- unit は quarter / half / eighth / dotted_quarter / dotted_half / whole のどれかです。
+  音符が白抜き(符頭が塗りつぶされていない)なら 2分音符 half です。見間違えないでください。
+- 「Allegro」「Molto vivo」のような速度標語だけで数字が無いものは報告しないでください。
+- 「♩=𝅗𝅥」のような音符どうしのイコール(前後の速さの関係を示すもの)は数値ではないので
+  報告しないでください。
+- 鉛筆で書き込まれた数字(奏者のメモ)はテンポではありません。報告しないでください。"""
 
 
 class MeasureMeter(BaseModel):
     index: int = Field(description="枠番号")
     time_signature: str = Field(description="拍子(例 4/4, 5/8)。途中で変わるなら 4/4+2/4 のように連結")
+    # NOTE: 既定値は旧 read_meter.json(キャッシュ)が ts_source を持たないための後方互換
+    ts_source: str = Field(
+        default="carried",
+        description="拍子をどこから決めたか。printed=その枠に印刷されていた / "
+                    "courtesy=前段末の予告拍子から / carried=前の小節から引き継いだ / "
+                    "unknown=手がかりが無く推測した")
     changes_midbox: bool = Field(description="1つの枠の途中で拍子が変わるか")
     beat_groups: list[int] = Field(
         description="分母が8の不規則拍子(5/8,7/8等)で、音符の連桁(ビーム)の区切りが示す拍の"
@@ -59,18 +87,34 @@ class StaffCourtesy(BaseModel):
     ts: str = Field(description="その段の最後に小さく書かれた、次段への予告拍子")
 
 
+class TempoMark(BaseModel):
+    index: int = Field(description="テンポ表示が書かれている枠番号")
+    value: int = Field(description="メトロノーム記号の数字(例 134)")
+    unit: str = Field(description="音符の種類 quarter / half / eighth / dotted_quarter / "
+                                  "dotted_half / whole。白抜きの符頭は half")
+    text: str = Field(description="書かれていた通りの表記(例 II Molto vivo (𝅗𝅥=134))")
+
+
 class Result(BaseModel):
     measures: list[MeasureMeter]
     end_courtesies: list[StaffCourtesy] = Field(
         description="各段の末尾に予告拍子(次段最初の小節の拍子)が書かれていれば報告。無ければ空")
+    # NOTE: default_factory が無いと、tempos を持たない既存の read_meter.json(キャッシュ)が
+    #   読み込みで落ちる。後方互換のため既定値を置く
+    tempos: list[TempoMark] = Field(
+        default_factory=list,
+        description="曲中のテンポ表示(メトロノーム記号)。速度標語だけ・音符どうしのイコール・"
+                    "鉛筆の書き込みは含めない。無ければ空")
 
 
-def ask(client, out_dir, indices_by_staff):
-    contents = [PROMPT]
+def ask(client, out_dir, indices_by_staff, hint=""):
+    contents = [PROMPT + hint]
     for si, indices in indices_by_staff.items():
-        contents.append(f"段{si} (枠番号 {indices}): staff_{si:02d}.jpg")
+        # NOTE: wide_NN(AI入力用の広いクロップ)を使う。staff_NN(検出用の狭いクロップ)だと
+        #   段の上下に書かれるテンポ表示が切れて、𝅗𝅥=134 を ♩=134 と誤読する(速さが半分になる)
+        contents.append(f"段{si} (枠番号 {indices}): wide_{si:02d}.jpg")
         contents.append(types.Part.from_bytes(
-            data=(out_dir / f"staff_{si:02d}.jpg").read_bytes(), mime_type="image/jpeg"))
+            data=(out_dir / f"wide_{si:02d}.jpg").read_bytes(), mime_type="image/jpeg"))
     config = types.GenerateContentConfig(
         response_mime_type="application/json", response_schema=Result)
     for attempt in range(5):
@@ -91,6 +135,49 @@ def beats_of(ts):
     return float(total)
 
 
+def load_start(out_dir):
+    """triage(read_start.py)が確定させた開始情報。無ければ None"""
+    path = out_dir / "start.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def hint_text(start):
+    """確定した開始情報をプロンプトに差し込む文。確定していなければ空文字
+
+    NOTE: 1小節目の拍子を誤ると carry-forward で後続すべてに伝播するので、triage で確定できた分は
+      推測させず教える。1段目のクロップに拍子記号が入らない写真(段の左端が検出から外れる等)でも
+      triage は全幅のページ頭画像から読めていることがある。
+    """
+    if not start:
+        return ""
+    lines = []
+    if start["ts"]["value"]:
+        lines.append(f"1番最初の小節の拍子は {start['ts']['value']} と確定しています。"
+                     "最初の枠はこの拍子にしてください(ts_source は printed)。")
+    if start["tempo"]["value"]:
+        lines.append(f"曲の開始テンポは4分音符換算で {start['tempo']['value']} と確定しています"
+                     f"({start['tempo']['text'] or ''})。これは tempos に報告しなくて構いません。")
+    if not lines:
+        return ""
+    return "\n\n【確定している情報】\n" + "\n".join(lines)
+
+
+def apply_start(out, start):
+    """確定した開始情報を先頭の小節の anchor にする"""
+    if not out or not start:
+        return
+    first = out[0]
+    if start["ts"]["value"]:
+        first["ts"] = start["ts"]["value"]
+        first["beats"] = beats_of(start["ts"]["value"])
+        first["ts_source"] = "user"
+        first["confidence"] = 1.0
+    if start["tempo"]["value"]:
+        first["tempo"] = start["tempo"]["value"]
+        first["tempo_text"] = start["tempo"]["text"]
+        first["tempo_source"] = "user"
+
+
 def apply_courtesy(result, first_of_staff):
     # NOTE: 予告拍子を次段の最初の小節に引き継ぐ。拍子は段をまたいで繰り返されないため、
     #   段末の予告拍子が次段先頭の小節の拍子になる(例: staff7末尾の2/4 → staff8先頭 枠51)
@@ -99,6 +186,7 @@ def apply_courtesy(result, first_of_staff):
         nxt = first_of_staff.get(c.staff + 1)
         if nxt is not None and nxt in by_index:
             by_index[nxt].time_signature = c.ts
+            by_index[nxt].ts_source = "courtesy"
 
 
 def main():
@@ -116,6 +204,8 @@ def main():
     first_of_staff = {si: min(idxs) for si, idxs in indices_by_staff.items()}
     all_idx = sorted(m["index"] for m in measures)
 
+    start = load_start(out_dir)
+    hint = hint_text(start)
     cache = out_dir / "read_meter.json"
     client = genai.Client()
     results = []
@@ -125,13 +215,19 @@ def main():
         results = [r]
     else:
         for _ in range(runs):
-            r = ask(client, out_dir, indices_by_staff)
+            r = ask(client, out_dir, indices_by_staff, hint)
             apply_courtesy(r, first_of_staff)
             results.append(r)
         cache.write_text(results[-1].model_dump_json(indent=2))
 
     ts_by_run = [{m.index: m.time_signature for m in r.measures} for r in results]
     bg_last = {m.index: m.beat_groups for m in results[-1].measures}
+    # NOTE: ts_source は多数決を取らず最終 run の値を使う(拍子そのものは多数決)。
+    #   既定 METER_RUNS=1 では差が出ないため
+    src_last = {m.index: m.ts_source for m in results[-1].measures}
+    # NOTE: テンポは多数決を取らない(beat_groups と同じく最終 run の値を使う)。既定 METER_RUNS=1 では
+    #   差が出ず、テンポ表示は拍子より読み間違いが少ないため
+    tempo_last = {t.index: t for t in results[-1].tempos}
 
     out = []
     for i in all_idx:
@@ -143,13 +239,28 @@ def main():
             b = beats_of(ts)
         except Exception:
             b = None
-        out.append({"index": i, "ts": ts, "beats": b, "beat_groups": bg_last.get(i, []),
-                    "confidence": round(cnt / len(results), 2)})
+        m = {"index": i, "ts": ts, "beats": b, "beat_groups": bg_last.get(i, []),
+             "ts_source": src_last.get(i, "carried"),
+             "confidence": round(cnt / len(results), 2)}
+        # NOTE: テンポは表示のある小節にだけ付ける(anchor)。全小節に展開しない。
+        #   引き継ぎ(carry-forward)はフロントの measureTempos が担う
+        t = tempo_last.get(i)
+        if t is not None and (bpm := quarter_bpm(t.value, t.unit)) is not None:
+            m["tempo"] = bpm
+            m["tempo_text"] = t.text
+            m["tempo_source"] = "printed"
+        out.append(m)
+    apply_start(out, start)
     (out_dir / "meter_ai.json").write_text(
         json.dumps({"measures": out}, ensure_ascii=False, indent=2))
 
     low = [m for m in out if m["confidence"] < 1.0]
-    print(f"model={MODEL} runs={runs}  {len(out)}枠  低信頼(読みが割れた)={len(low)}")
+    anchors = [m for m in out if "tempo" in m]
+    print(f"model={MODEL} runs={runs}  {len(out)}枠  低信頼(読みが割れた)={len(low)}  "
+          f"テンポ表示={len(anchors)}件"
+          + (f"  開始ヒント={start['ts']['value']} / ♩={start['tempo']['value']}" if hint else ""))
+    for m in anchors:
+        print(f"  枠{m['index']}: ♩={m['tempo']}  {m['tempo_text']}")
     for m in low:
         print(f"  枠{m['index']}: {m['ts']} conf={m['confidence']}")
 

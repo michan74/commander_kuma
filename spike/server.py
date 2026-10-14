@@ -32,10 +32,14 @@ def job_data(job):
     overlay = d / "overlay_corrected.json"
     if not overlay.exists():
         overlay = d / "overlay.json"
+    start = d / "start.json"
+    # NOTE: /process/detect の時点では meter がまだ無い(拍子は後段で読む)。meter=None を返して
+    #   フロントが「枠だけある状態」を描けるようにする
     return {
         "image": f"/jobs/{job}/input.jpg",
-        "overlay": json.loads(overlay.read_text()),
-        "meter": json.loads(meter.read_text()),
+        "overlay": json.loads(overlay.read_text()) if overlay.exists() else None,
+        "meter": json.loads(meter.read_text()) if meter.exists() else None,
+        "start": json.loads(start.read_text()) if start.exists() else None,
     }
 
 SPIKE = Path("/spike")
@@ -76,18 +80,54 @@ def run(script, *args):
                    cwd=SPIKE, check=True, capture_output=True, text=True)
 
 
-@app.post("/process")
-async def process(file: UploadFile = File(...)):
+def apply_answer(d, body):
+    """人が答えた開始情報を start.json に反映して確定させる。
+
+    body: {"ts": "2/2", "tempo": 268} (4分換算BPM。どちらも任意)
+    """
+    path = d / "start.json"
+    start = json.loads(path.read_text()) if path.exists() else {"ts": {}, "tempo": {}}
+    if body.get("ts"):
+        start["ts"] = {"value": body["ts"], "state": "user", "text": body.get("ts_text")}
+    if body.get("tempo"):
+        start["tempo"] = {"value": int(body["tempo"]), "state": "user",
+                          "unit": body.get("unit"), "word": None, "text": body.get("tempo_text")}
+    start["ask"] = [k for k in ("ts", "tempo") if not start.get(k, {}).get("value")]
+    start["status"] = "ask" if start["ask"] else "ok"
+    path.write_text(json.dumps(start, ensure_ascii=False, indent=2))
+
+
+# 解析は2段に分かれる。前段(detect)で枠と「開始の拍子・テンポが読めたか」を返し、
+# 読めなければフロントが人に聞いてから後段(read)を呼ぶ。
+# NOTE: 人の答えを後段のプロンプトに渡したいので、前段と後段を並行には走らせない。
+#   1小節目の拍子を誤ると carry-forward で後続すべてに伝播するため、読む前に確定させる。
+@app.post("/process/detect")
+async def process_detect(file: UploadFile = File(...)):
     job = uuid.uuid4().hex[:8]
     d = JOBS / job
     d.mkdir(parents=True, exist_ok=True)
     img = d / "input.jpg"
     img.write_bytes(await file.read())
     try:
-        run("detect_measures.py", img, d)   # 段階1: 小節検出
-        run("read_meter.py", d)             # 段階3: Gemini(Vertex)で拍子読み
-        run("read_beat_groups.py", d)       # 不規則拍子(5/8等)のグループをクリーン切り出しで読む
+        run("detect_measures.py", img, d)   # 段階1: 小節検出(約2秒)
         run("export_overlay.py", d, img)    # 小節を元写真座標のポリゴンに
+        run("read_start.py", d, img)        # triage: 開始の拍子・テンポが読めるか
+    except subprocess.CalledProcessError as e:
+        return JSONResponse(status_code=500, content={"error": (e.stderr or str(e))[-2000:]})
+    return {"job": job, **job_data(job)}
+
+
+# 後段。body に人の回答({ts, tempo})があれば start.json に反映してから本読みに進む
+@app.post("/process/read/{job}")
+def process_read(job: str, body: dict = Body(default={})):
+    d = JOBS / job
+    if not d.exists():
+        return JSONResponse(status_code=404, content={"error": "not found"})
+    if body:
+        apply_answer(d, body)
+    try:
+        run("read_meter.py", d)             # 段階3: Gemini(Vertex)で拍子・テンポ読み
+        run("read_beat_groups.py", d)       # 不規則拍子(5/8等)のグループをクリーン切り出しで読む
     except subprocess.CalledProcessError as e:
         return JSONResponse(status_code=500, content={"error": (e.stderr or str(e))[-2000:]})
     prune_jobs()  # 最新 MAX_JOBS 件だけ残す
