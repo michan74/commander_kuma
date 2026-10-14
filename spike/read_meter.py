@@ -175,6 +175,8 @@ def apply_start(out, start):
     if start["tempo"]["value"]:
         first["tempo"] = start["tempo"]["value"]
         first["tempo_text"] = start["tempo"]["text"]
+        # NOTE: tempo は4分換算で持つが、表示を楽譜どおりの音符にするため元の単位も残す
+        first["tempo_unit"] = start["tempo"].get("unit") or "quarter"
         first["tempo_source"] = "user"
 
 
@@ -248,6 +250,7 @@ def main():
         if t is not None and (bpm := quarter_bpm(t.value, t.unit)) is not None:
             m["tempo"] = bpm
             m["tempo_text"] = t.text
+            m["tempo_unit"] = t.unit or "quarter"  # 表示用に元の音符単位を残す(内部は4分換算)
             m["tempo_source"] = "printed"
         out.append(m)
     apply_start(out, start)

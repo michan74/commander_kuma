@@ -8,6 +8,7 @@
   /* カラーパレット(森×都市のモダン)。色変更は基本ここだけで済むよう変数化 */
   :root {
     --leaves: #506D2F; --bark: #2A2922; --marble: #F3EBDD; --brown: #7D5642;
+    --pumpkin: #D55448;  /* AI自信なし(要確認)の破線色 */
     --accent: #506D2F; --accent-dark: #3c531f; --accent-light: #6b8f42;
     --review-bg: #e3ead5;  /* 調節中と分かる薄いleaves */
     --bg: var(--marble); --text: var(--bark);  /* アプリ背景テーマ(切替可) */
@@ -16,31 +17,48 @@
   body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
   .hidden { display: none !important; }
 
-  /* アップロード画面 */
+  /* TOPページ */
   #upload { min-height: 100vh; display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 20px; text-align: center; padding: 24px; }
-  #upload h1 { margin: 0; font-size: 34px; }
-  #upload p.sub { color: #666; margin: 0; }
+            justify-content: center; gap: 32px; text-align: center; padding: 24px;
+            background: var(--marble); }
+  .top-logo { width: min(88%, 480px); display: block; }
+  #up-status { color: var(--accent); min-height: 18px; font-size: 14px; }
+  .top-btns { display: flex; flex-direction: column; gap: 24px; width: min(280px, 55vw); margin-top: 48px; }
+  .top-btn { font-size: 16px; padding: 12px 20px; border-radius: 0; cursor: pointer;
+             font-family: inherit; width: 100%; display: block; text-align: center; box-sizing: border-box;
+             transition: opacity .15s; outline: 1.5px solid var(--bark); outline-offset: 4px; }
+  .top-btn:active { opacity: .75; }
+  .top-outline { background: #fff; border: 1.5px solid var(--bark); color: var(--bark); font-weight: 500; }
+  .top-fill { background: var(--leaves); border: 1.5px solid var(--leaves); color: #fff; font-weight: 600; }
+  /* アップロード画面(カード・汎用ボタン) */
   .card { background: var(--bark); border: 1px solid #333; border-radius: 12px; padding: 28px 32px;
           display: flex; flex-direction: column; gap: 16px; min-width: 320px; }
-  .btn { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 12px 18px;
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 0; padding: 12px 18px;
          font-size: 15px; font-weight: 700; cursor: pointer; }
   .btn.sub { background: #333; color: #eee; font-weight: 500; }
   .btn:disabled { opacity: .45; cursor: default; }
-  #up-status { color: var(--accent); min-height: 20px; }
-  #library { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 720px; }
-  #library h3 { width: 100%; margin: 4px 0; color: #666; font-size: 14px; }
-  .piece-card { background: var(--bark); border: 1px solid #333; border-radius: 8px; padding: 8px;
-                width: 140px; cursor: pointer; text-align: center; }
-  .piece-card:hover { border-color: var(--accent); }
-  .piece-card img { width: 100%; height: 72px; object-fit: cover; border-radius: 4px; background: #333; }
-  .piece-card .nm { display: block; font-size: 13px; margin-top: 6px; color: #eee;
+  /* 保存した曲を選ぶポップアップ */
+  .lib-card { background: var(--marble); border: 1.5px solid var(--brown); border-radius: 0;
+              padding: 20px; width: 560px; max-width: 92vw; max-height: 80vh; overflow-y: auto;
+              box-shadow: 0 10px 40px #0005; display: flex; flex-direction: column; gap: 16px; }
+  .lib-head { display: flex; align-items: center; justify-content: space-between; }
+  .lib-head strong { font-size: 17px; color: var(--bark); }
+  .lib-close { background: none; border: none; font-size: 28px; line-height: 1; color: var(--brown);
+               cursor: pointer; padding: 0 4px; }
+  #library { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+  #library .empty { color: #888; font-size: 14px; padding: 20px; }
+  .piece-card { background: #fff; border: 1.5px solid var(--brown); border-radius: 0; padding: 8px;
+                width: 150px; cursor: pointer; text-align: center; transition: background .12s; }
+  .piece-card:hover { background: var(--review-bg); }
+  .piece-card img { width: 100%; height: 80px; object-fit: cover; background: #eee; }
+  .piece-card .nm { display: block; font-size: 13px; margin-top: 6px; color: var(--bark); font-weight: 600;
                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .piece-card small { color: #888; }
 
   /* プレイヤー画面 */
-  header { padding: 10px 16px; background: var(--bark); color: #eee; position: sticky; top: 0; z-index: 10;
-           display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header { padding: 10px 16px; background: var(--bg); color: var(--text); position: sticky; top: 0; z-index: 10;
+           display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+           border-bottom: 4px double var(--brown); }
   header label { font-size: 13px; }
   input[type=number] { width: 66px; }
   #status { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
@@ -56,14 +74,26 @@
   /* NOTE: #ov 限定。汎用 svg/polygon にすると metro/bear の図形にも適用され、
      菱形がビューポート基準で絶対配置+オレンジ太線化して画面が崩れる */
   #ov { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-  #ov polygon { fill: transparent; stroke: rgba(80,109,47,.75); stroke-width: 6; cursor: pointer; }
+  #ov polygon { fill: transparent; stroke: rgba(80,109,47,.85); stroke-width: 11; cursor: pointer; }  /* 練習画面=元の緑 */
+  body.review-mode #ov polygon { stroke: var(--pumpkin); }  /* 調整画面=パンプキン(見やすさ優先) */
   #ov polygon.inloop { fill: rgba(60,160,255,.16); }  /* ループ範囲 */
-  #ov polygon.cue { stroke: #39d353; stroke-width: 9; }  /* 頭出しで選んだ開始小節 */
-  #ov polygon.lowconf { stroke: #d500f9; stroke-width: 8; stroke-dasharray: 10 6; }  /* AIが自信なし=要確認 */
-  #ov polygon.active { fill: rgba(255,60,60,.30); stroke: #ff2d2d; stroke-width: 9; }
+  #ov polygon.cue { stroke: #39d353; stroke-width: 14; }  /* 頭出しで選んだ開始小節 */
+  #ov polygon.lowconf { stroke: var(--pumpkin); stroke-width: 13; stroke-dasharray: 14 8; }  /* AIが自信なし=要確認 */
+  /* 現在小節のハイライト。しきくま/メトロのミニ譜面(rgba(255,120,0,.32))と同色に揃える */
+  #ov polygon.active { fill: rgba(255,120,0,.32); stroke: #ff7800; stroke-width: 14; }
   #ov polygon.sel { stroke: none; }  /* 選択小節はスポットライトで分かるので枠線なし=見やすく */
   #player { display: none; }
   #views { width: 100%; max-width: 900px; }
+  /* PC: 譜読みビュー(再生モードのみ)は楽譜の右の余白に再生操作を置く。
+     調整モードは楽譜を中央・大きく見せたいのでこのレイアウトは当てない */
+  @media (min-width: 701px) {
+    body:not(.review-mode) #views[data-view="score"] { display: flex; align-items: flex-start; gap: 32px; max-width: 1200px; }
+    body:not(.review-mode) #views[data-view="score"] #score-wrap { flex: 1 1 auto; max-width: 640px; }
+    body:not(.review-mode) #views[data-view="score"] #transport { flex: 0 0 220px; position: sticky; top: 72px; margin: 0; padding-top: 40px; }
+    /* 調整モード: 楽譜を中央寄せ・大きく(余白いっぱい) */
+    body.review-mode #views { max-width: 1100px; }
+    body.review-mode #score-wrap { max-width: 100%; margin: 0 auto; }
+  }
   #metro-view, #bear-view { text-align: center; padding-top: 10px; }
   /* SVGに明示的な高さを与える(未指定だと150pxになり図形がはみ出てtransportに重なる)。
      preserveAspectRatio(meet)で図形はボックス内に収まるので下の要素と重ならない */
@@ -76,8 +106,8 @@
   #score-strip { width: 100%; display: block; border-radius: 6px; }
   #strip-label { text-align: center; font-size: 14px; color: #666; min-height: 18px; margin-bottom: 3px; }
   /* ハンバーガーメニュー */
-  #menu-btn { font-size: 20px; padding: 6px 11px; line-height: 1; background: var(--brown); color: #fff; }
-  #settings-btn { font-size: 24px; padding: 5px 13px; line-height: 1; margin-left: auto; }
+  #menu-btn { font-size: 20px; padding: 6px 11px; line-height: 1; background: transparent; color: var(--text); border-radius: 0; }
+  #settings-btn { font-size: 24px; padding: 5px 13px; line-height: 1; margin-left: auto; border-radius: 0; background: transparent; color: var(--text); }
   #play-ctrls { flex: 1; }  /* 設定(⚙)を画面右端へ寄せるため幅いっぱいに */
   #ham-menu { position: fixed; top: 56px; left: 0; z-index: 50; background: var(--bark);
               border: 1px solid #444; border-radius: 0 0 12px 0; padding: 10px;
@@ -87,8 +117,10 @@
   @media (max-width: 700px) {
     main { padding: 8px; }
     #views { max-width: 100%; }
-    /* ヘッダーを1段に: タイトル文字を隠し ☰ [モード▼] [⚙] だけにする(調節の<strong>は残す) */
+    /* ヘッダーを1段に: タイトル文字を隠し ☰ [モード▼] [⚙] だけにする */
     header > strong { display: none; }
+    /* 調整画面ではタイトル「調整画面」は残す(☰ の右に表示) */
+    body.review-mode #app-title { display: inline; }
     /* 譜読みモードの楽譜はスマホでは横幅いっぱい(見やすさ優先) */
     #score-wrap { max-width: 100%; }
     /* 図形は端末幅で一度決まる固定サイズ。演奏中に大きさ・位置が変わらないようにする
@@ -112,15 +144,31 @@
   .sp-row { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #222; }
   .sp-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
   /* 再生モードのモード選択 */
-  #view { font-size: 15px; padding: 7px 12px; border-radius: 8px; border: 1.5px solid #666;
-          background: #2a2a2a; color: #eee; cursor: pointer; }
-  #editor { position: fixed; bottom: 16px; left: 16px; z-index: 20; background: var(--bark); color: #eee;
-            border: 1px solid var(--accent-light); border-radius: 10px; padding: 14px 16px; display: flex;
-            flex-direction: column; gap: 10px; min-width: 260px; box-shadow: 0 6px 24px #000a; }
-  #editor h3 { margin: 0; font-size: 15px; color: var(--accent-light); cursor: move; user-select: none; }
-  #editor label { font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
-  #editor input { width: 120px; }
-  #editor .row { display: flex; gap: 8px; }
+  /* プルダウン: 四角角 + 下向き矢印(v)を文字の左側に。native矢印は消して自前のSVGを左配置 */
+  #view { font-size: 15px; padding: 7px 14px 7px 30px; border-radius: 0; border: none;
+          background-color: transparent; color: var(--text); cursor: pointer;
+          appearance: none; -webkit-appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23506D2F' stroke-width='2'/%3E%3C/svg%3E");
+          background-repeat: no-repeat; background-position: left 8px center; }
+  /* ドロップダウンの選択肢はブラウザ既定(白背景)なので文字色を戻す */
+  #view option { color: #222; }
+  /* 補正パネル: TOPのポップアップと同じ marble地+brown枠+四角角(黒はやめる) */
+  #editor { position: fixed; bottom: 16px; left: 16px; z-index: 20; background: var(--marble); color: var(--bark);
+            border: 1.5px solid var(--brown); border-radius: 0; padding: 16px 18px; display: flex;
+            flex-direction: column; gap: 10px; min-width: 280px; box-shadow: 0 10px 40px #0005; }
+  #editor h3 { margin: 0; font-size: 16px; color: var(--leaves); cursor: move; user-select: none; }
+  #editor label { font-size: 14px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  #editor input { width: 140px; padding: 6px 8px; border: 1.5px solid var(--brown); border-radius: 0;
+                  background: #fff; color: var(--bark); font-size: 15px; }
+  #editor input:disabled { background: #e7e0d4; color: #999; border-color: #c9beac; }  /* 拍子変更点以外は編集不可 */
+  #editor .note { font-size: 11px; color: #777; max-width: 240px; }
+  #editor .note.cascade { color: var(--pumpkin); font-weight: 600; }  /* 後続へ反映される注意 */
+  /* 閉じる(×)を右上に */
+  #editor .e-x { position: absolute; top: 8px; right: 10px; background: none; border: none;
+                 font-size: 24px; line-height: 1; color: var(--brown); cursor: pointer; padding: 0 4px; }
+  /* 反映ボタンを右下に(TOPの outline デザイン) */
+  #editor .e-foot { display: flex; justify-content: flex-end; margin-top: 4px; }
+  #editor .e-apply { width: auto; min-width: 120px; padding: 10px 24px; font-size: 15px; }
 
   /* 開始情報の確認ポップアップ(自律: くまが聞く) */
   .sp2-card { background: #fff; border-radius: 18px; padding: 22px; width: 320px; max-width: 90vw;
@@ -136,10 +184,42 @@
   .ctrls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .seg { display: flex; gap: 0; }
   .seg .tool { border-radius: 0; }
-  .seg .tool:first-child { border-radius: 8px 0 0 8px; }
-  .seg .tool:last-child { border-radius: 0 8px 8px 0; }
+  .seg .tool:first-child { border-radius: 0; }
+  .seg .tool:last-child { border-radius: 0; }
   .tool.active { background: var(--accent); color: #fff; font-weight: 700; }
-  #ov polygon.mergesel { fill: rgba(60,160,255,.28); stroke: #3ca0ff; stroke-width: 9; }
+  /* 調整ツール(拍子/分割/結合): 非選択はクリーム地(黒地をやめる)。選択中だけ緑 */
+  .seg .tool { background: var(--marble); color: var(--bark); border: 1.5px solid var(--brown);
+               margin-left: -1.5px; font-size: 18px; padding: 14px 10px; }
+  .seg .tool:first-child { margin-left: 0; }
+  .seg .tool.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  /* 調整画面本体(ヘッダーから移設)。名前 → 操作行 → ヒント をゾーンごとに間隔を空けて縦積み */
+  #review-panel { display: flex; flex-direction: column; align-items: stretch; gap: 22px;
+                  width: 100%; max-width: 900px; padding: 8px 8px 0; }
+  #review-panel .rv-row { display: flex; gap: 12px; align-items: stretch; }
+  #review-panel .rv-row .seg { flex: 1; }           /* 拍子/分割/結合 を画面幅いっぱいに */
+  #review-panel .rv-row .seg .tool { flex: 1; }
+  #review-panel #tool-hint { color: var(--accent); font-size: 17px; font-weight: 600; min-height: 20px; }
+  /* 凡例は楽譜画像の直前(枠の外)に左寄せ。画像やオーバーレイに重ねない */
+  #review-panel .rv-legend { display: flex; align-items: center; gap: 6px;
+                             color: #555; font-size: 12px; }
+  .rv-swatch { display: inline-block; width: 26px; height: 18px; border: 3px dashed var(--pumpkin); }
+  #review-panel .rv-name { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  #review-panel .rv-name input { padding: 6px 8px; border: 1.5px solid var(--brown); border-radius: 0;
+                                 font-size: 14px; width: 200px; background: #fff; color: var(--bark); font-weight: 400; }
+  #review-panel #undo { font-size: 22px; line-height: 1; padding: 0 18px; min-width: 60px;
+                        background: var(--marble); color: var(--bark); border: 1.5px solid var(--brown); }
+  /* 練習へ(楽譜の下・右寄せ)。TOPの緑ボタン(top-fill)デザインを流用 */
+  #review-foot { width: 100%; max-width: 900px; display: flex; justify-content: flex-end; padding: 12px 8px 20px; }
+  #review-foot .rv-play { width: auto; min-width: 240px; }
+  /* 調整モードは本体パネルを楽譜の上に縦積み(凡例と楽譜の隙間は詰める) */
+  body.review-mode main { flex-direction: column; align-items: center; gap: 6px; }
+  /* 調整中は再生操作(transport)は出さない(練習ボタンで再生へ移る) */
+  body.review-mode #transport { display: none; }
+  /* 調整モードでは「調節に戻る」は不要(すでに調整画面) */
+  body.review-mode #ham-review { display: none; }
+  /* 調整画面ではヘッダータイトル(調整画面)を表示。再生時は従来どおり */
+  body.review-mode #app-title { color: var(--text); }
+  #ov polygon.mergesel { fill: rgba(60,160,255,.28); stroke: #3ca0ff; stroke-width: 14; }
   #rlabels text { paint-order: stroke; }
 
   /* 再生トランスポート(大きな操作ボタン) */
@@ -148,7 +228,9 @@
                            padding: 2px 10px; border-radius: 8px; }
   #transport .tempo-line:hover { background: var(--review-bg); }
   #transport .tempo-line #big-bpm { color: var(--accent); }
-  #transport .tempo-line .pre-note { font-size: 15px; font-weight: 500; color: #888; margin-left: 10px; }
+  /* 前振りは1まとまりで扱い、入らなければ「前振り N拍」ごと次の行へ送る(語中で割れない) */
+  #transport .tempo-line .pre-note { font-size: 15px; font-weight: 500; color: #888; margin-left: 10px;
+                                     display: inline-block; white-space: nowrap; }
   #transport .tbtns { display: flex; gap: 20px; justify-content: center; align-items: center; margin-top: 10px; }
   .round { width: 72px; height: 72px; border-radius: 50%; border: none; cursor: pointer;
            font-size: 30px; line-height: 1; color: #fff; background: var(--accent); box-shadow: 0 3px 10px #0002; }
@@ -156,6 +238,25 @@
   .round.playing { background: var(--accent-dark); }
   .round.small { width: 56px; height: 56px; font-size: 24px; background: #fff; color: var(--accent);
                  border: 3px solid var(--accent); box-shadow: none; }
+
+  /* 解析中ポップアップ */
+  .ana-card { background: var(--marble); border-radius: 0; padding: 36px 28px; width: 320px; max-width: 90vw;
+              border: 1.5px solid var(--brown);
+              box-shadow: 0 10px 40px #0004; text-align: center;
+              display: flex; flex-direction: column; align-items: center; }
+  /* スピナー表示と質問表示を同じカード内で切替。各セクションが内部レイアウトを持つ */
+  #ana-spin { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+  #ana-ask { display: flex; flex-direction: column; gap: 14px; width: 100%; text-align: left; }
+  .ana-spinner { width: 52px; height: 52px; border: 5px solid #d9cfc4;
+                 border-top-color: var(--leaves); border-radius: 50%;
+                 animation: spin .9s linear infinite; }
+  .ana-spinner.error { animation: none; border-color: #f66; border-top-color: #f66; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #ana-msg { font-size: 15px; color: var(--bark); margin: 0; line-height: 1.6; }
+  #ana-sub { font-size: 12px; color: #888; margin: 0; line-height: 1.5; }
+  #ana-close-btn { background: var(--marble); border: 1.5px solid var(--brown);
+                   border-radius: 0; padding: 10px 24px; font-size: 14px; cursor: pointer;
+                   color: var(--bark); }
 
   /* テンポ設定(テンキーポップアップ) */
   .modal { position: fixed; inset: 0; z-index: 40; background: #0006; display: flex;
@@ -176,41 +277,26 @@
 </head>
 <body>
 
-<!-- アップロード画面 -->
+<!-- TOPページ -->
 <section id="upload">
-  <h1>指揮者っくま</h1>
-  <p class="sub">楽譜の写真を読み込むと、変拍子でも指揮(メトロノーム)してくれる練習アプリ</p>
-  <div class="card">
-    <input id="file" type="file" accept="image/*">
-    <button id="analyze" class="btn">この写真を解析する</button>
-    <button id="sample" class="btn sub">サンプル(DANCE MOVEMENTS)で試す</button>
-    <div id="up-status"></div>
+  <img class="top-logo" src="images/title_logo.png" alt="Bearstro">
+  <input id="file" type="file" accept="image/*" style="position:absolute;width:0;height:0;opacity:0;overflow:hidden;">
+  <button id="analyze" class="hidden"></button>
+  <button id="sample" class="hidden"></button>
+  <div id="up-status"></div>
+  <div class="top-btns">
+    <label id="load-btn" for="file" class="top-btn top-outline">楽譜読み込み</label>
+    <button id="prac-btn" class="top-btn top-fill">練習</button>
   </div>
-  <div id="library"></div>
 </section>
 
 <!-- プレイヤー画面 -->
 <div id="app" class="hidden">
 <header>
   <button id="menu-btn" class="btn sub" title="メニュー">☰</button>
-  <strong>指揮者っくま</strong>
+  <strong id="app-title">指揮者っくま</strong>
   <!-- JS参照用(非表示) -->
   <button id="back" class="hidden"></button>
-
-  <!-- 調節(レビュー)モードのツールバー -->
-  <div id="review-ctrls" class="ctrls">
-    <strong>調節</strong>
-    <div class="seg">
-      <button id="tool-edit" class="btn sub tool active">拍子</button>
-      <button id="tool-split" class="btn sub tool">分割</button>
-      <button id="tool-merge" class="btn sub tool">結合</button>
-    </div>
-    <button id="undo" class="btn sub" disabled>戻す</button>
-    <span id="tool-hint" style="color:var(--accent);font-size:12px"></span>
-    <span style="color:#888;font-size:11px"><span style="color:#d500f9">紫破線</span>=AI自信なし(要確認)</span>
-    <button id="rename" class="btn sub">名前</button>
-    <button id="to-play" class="btn">▶ この内容で練習する</button>
-  </div>
 
   <!-- 再生モードのツールバー -->
   <div id="play-ctrls" class="ctrls hidden">
@@ -238,6 +324,20 @@
   <button id="ham-back" class="btn sub">← 別の写真</button>
 </div>
 <main>
+  <!-- 調整画面本体(ヘッダーから移設)。調整モードだけ表示 -->
+  <div id="review-panel" class="hidden">
+    <label class="rv-name">名前: <input id="rename-input" type="text" placeholder="曲名"></label>
+    <div class="rv-row">
+      <div class="seg">
+        <button id="tool-edit" class="btn sub tool active">拍子</button>
+        <button id="tool-split" class="btn sub tool">分割</button>
+        <button id="tool-merge" class="btn sub tool">結合</button>
+      </div>
+      <button id="undo" class="btn sub" disabled title="戻す">↩</button>
+    </div>
+    <span id="tool-hint"></span>
+    <span class="rv-legend"><span class="rv-swatch"></span> = AI自信なし(要確認)</span>
+  </div>
   <div id="views">
     <div id="score-wrap">
       <img id="score" alt="楽譜">
@@ -254,43 +354,24 @@
       <svg id="bear-svg" viewBox="0 0 420 420"></svg>
     </div>
     <div id="transport" class="hidden">
-      <div class="tempo-line" id="tempo-line" title="クリックでテンポ設定">♩= <span id="big-bpm">136</span><span class="pre-note">前振り <span id="big-preN">4</span>拍</span></div>
+      <div class="tempo-line" id="tempo-line" title="クリックでテンポ設定"><span id="big-note">♩</span>= <span id="big-bpm">136</span><span class="pre-note">前振り <span id="big-preN">4</span>拍</span></div>
       <div class="tbtns">
+        <button id="big-restart" class="round small" title="最初に戻す">⏮</button>
         <button id="big-play" class="round" title="再生 / 一時停止">▶</button>
-        <button id="big-restart" class="round small" title="最初から">⟲</button>
       </div>
     </div>
+  </div>
+  <!-- 練習へ(調整モードだけ表示)。楽譜の下・右寄せ -->
+  <div id="review-foot" class="hidden">
+    <button id="to-play" class="top-btn top-fill rv-play">▶ この内容で練習する</button>
   </div>
   <div id="player"></div>
 </main>
 
-<!-- 開始情報の確認(自律: 読み取りにくい時だけ くまが聞く) -->
-<div id="startpopup" class="modal hidden">
-  <div class="sp2-card">
-    <div class="sp2-head">正しく振るために確認させて！</div>
-    <p class="sp2-note" id="sp2-note">このページの冒頭、拍子が読み取りにくいところがありました。<br>開始の<b>拍子</b>と<b>テンポ</b>を教えてください。</p>
-    <label class="sp2-field" id="st-ts-row">開始の拍子
-      <span><input id="st-num" type="number" min="1" value="4"> <b>/</b> <input id="st-den" type="number" min="1" value="4"></span>
-    </label>
-    <label class="sp2-field" id="st-tempo-row">テンポ
-      <span>
-        <select id="st-unit">
-          <option value="1">♩ = 4分</option>
-          <option value="2">2分音符</option>
-          <option value="0.5">♪ = 8分</option>
-          <option value="1.5">♩. = 付点4分</option>
-        </select>
-        = <input id="st-bpm" type="number" min="20" value="136">
-      </span>
-    </label>
-    <button id="st-ok" class="btn kp-ok">この内容で振る</button>
-  </div>
-</div>
-
 <!-- テンポ設定(テンキー) -->
 <div id="keypad" class="modal hidden">
   <div class="kp-card">
-    <div class="kp-head"><span id="kp-val">136</span><button id="kp-x" class="kp-close" title="閉じる">×</button></div>
+    <div class="kp-head"><span id="kp-note" style="font-size:38px;color:#333;margin-right:10px">♩</span><span id="kp-val">136</span><button id="kp-x" class="kp-close" title="閉じる">×</button></div>
     <div class="kp-grid">
       <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
       <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
@@ -322,15 +403,61 @@
 </div>
 
 <div id="editor" class="hidden">
+  <button id="e-close" class="e-x" title="閉じる">×</button>
   <h3 id="e-title">小節を補正</h3>
   <label>拍子 <input id="e-ts" type="text" placeholder="4/4, 5/8 …"></label>
-  <label>分け方 <input id="e-bg" type="text"></label>
-  <div style="font-size:11px;color:#999;max-width:230px">分け方 = 拍の区切り(数字の列)。4/4→1,1,1,1 / 5/8を2+3→2,3</div>
-  <div class="row">
-    <button id="e-apply" class="btn">この小節に反映</button>
-    <button id="e-close" class="btn sub">閉じる</button>
+  <label>振り方 <input id="e-bg" type="text"></label>
+  <div class="note">振り方 = 拍の区切り(数字の列)。4/4→1,1,1,1 / 5/8を2+3→2,3</div>
+  <div id="e-cascade-note" class="note cascade hidden">⚠ この小節は拍子の変更点です。変更すると、次の拍子変更までの小節すべてに反映されます。</div>
+  <div class="e-foot">
+    <button id="e-apply" class="top-btn top-outline e-apply">反映</button>
   </div>
 </div>
+</div>
+
+<!-- 解析ポップアップ(#app の外に置く: body直下でどの画面でも表示できる)。
+     スピナー表示と「確認の質問」を同じカード内で切り替える -->
+<div id="analyze-popup" class="modal hidden">
+  <div class="ana-card">
+    <!-- スピナー(処理中) -->
+    <div id="ana-spin">
+      <div class="ana-spinner" id="ana-spinner"></div>
+      <p id="ana-msg">解析中…</p>
+      <p id="ana-sub"></p>
+      <button id="ana-close-btn" class="hidden">閉じる</button>
+    </div>
+    <!-- 確認の質問(読み取りにくい時だけ表示) -->
+    <div id="ana-ask" class="hidden">
+      <div class="sp2-head">正しく振るために確認させて！</div>
+      <p class="sp2-note" id="sp2-note">このページの冒頭、拍子が読み取りにくいところがありました。<br>開始の<b>拍子</b>と<b>テンポ</b>を教えてください。</p>
+      <label class="sp2-field" id="st-ts-row">開始の拍子
+        <span><input id="st-num" type="number" min="1" value="4"> <b>/</b> <input id="st-den" type="number" min="1" value="4"></span>
+      </label>
+      <label class="sp2-field" id="st-tempo-row">テンポ
+        <span>
+          <select id="st-unit">
+            <option value="1">♩ = 4分</option>
+            <option value="2">2分音符</option>
+            <option value="0.5">♪ = 8分</option>
+            <option value="1.5">♩. = 付点4分</option>
+          </select>
+          = <input id="st-bpm" type="number" min="20" value="136">
+        </span>
+      </label>
+      <button id="st-ok" class="btn kp-ok">この内容で振る</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保存した曲を選ぶポップアップ(「練習」から開く) -->
+<div id="library-popup" class="modal hidden">
+  <div class="lib-card">
+    <div class="lib-head">
+      <strong>練習する曲を選ぶ</strong>
+      <button id="lib-close-btn" class="lib-close" title="閉じる">×</button>
+    </div>
+    <div id="library"></div>
+  </div>
 </div>
 
 <script>
@@ -346,6 +473,17 @@ let metroV = [], metroSig = '';  // メトロノーム図形の頂点と形の�
 let appMode = 'review', reviewTool = 'edit', mergeSel = -1, currentImage = '';  // 調節/再生の切替
 let undoStack = [];  // 調節の1手戻す用(分割・結合・拍子編集の直前スナップショット)
 let pausedAt = null, kpBuf = '', lastUI = '';  // 一時停止位置 / テンキー入力 / 再生UIの前回状態
+// テンポ表示の音符単位。内部($('tempo'))は4分換算のまま、表示だけこの単位で見せる
+let tempoUnit = 'quarter';
+const UNIT_FACTOR = { quarter: 1, half: 2, eighth: 0.5, dotted_quarter: 1.5, dotted_half: 3, whole: 4 };
+const NOTE_GLYPH = { quarter: '♩', half: '𝅗𝅥', eighth: '♪', dotted_quarter: '♩.', dotted_half: '𝅗𝅥.', whole: '𝅝' };
+function tempoFactor() { return UNIT_FACTOR[tempoUnit] || 1; }
+// 4分換算の内部テンポ → 単位に合わせた表示(音符記号 + BPM)を #big-note/#big-bpm に反映
+function renderTempo() {
+  const q = Math.max(20, parseFloat($('tempo').value) || 136);
+  if ($('big-bpm')) $('big-bpm').textContent = Math.round(q / tempoFactor());
+  if ($('big-note')) $('big-note').textContent = NOTE_GLYPH[tempoUnit] || '♩';
+}
 let lastStripKey = '';  // updateScoreMini の変化検知キー
 let startConfirmed = false;  // 開始の拍子・テンポをユーザーに確認済みか(自律: 低信頼なら聞く)
 let theme = localStorage.getItem('kuma_theme') || 'marble';  // アプリ背景テーマ(marble=明 / leaves=森)
@@ -392,6 +530,10 @@ function openEditor(i) {
   const conf = info.confidence !== undefined ? `  (AI信頼度 ${Math.round(info.confidence * 100)}%${info.confidence < 1 ? ' ⚠' : ''})` : '';
   $('e-title').textContent = `小節 ${i + 1} を補正${conf}`;
   $('e-ts').value = info.ts;
+  // 拍子は「変更点」の小節だけ編集可。それ以外は振り方のみ(拍子欄は無効化)
+  const anchor = isTsAnchor(i);
+  $('e-ts').disabled = !anchor;
+  $('e-cascade-note').classList.toggle('hidden', !anchor);  // 変更点は後続へ反映される旨を表示
   $('e-bg').value = effectiveGroups(info).join(',');
   const ed = $('editor');
   ed.classList.remove('hidden');
@@ -439,6 +581,14 @@ function initFromData(image, ov, mt, bt, mode) {
     if (saved) { try { const s = JSON.parse(saved); if (s.meter) meter = s.meter; if (s.overlay) overlay = s.overlay; } catch (e) {} }
   }
   beats = bt && bt.beat_times && bt.beat_times.length ? bt : { tempo: 136, beat_times: [] };
+  // 読み取った開始テンポ(4分換算)を再生テンポに反映。自動で読めた時も反映されるようここで行う
+  // NOTE: askStart で人が答えた場合は 711行目で既に設定済みだが、ここで上書きしても同値なので無害
+  const mt0 = meter.measures && meter.measures.find(x => x.tempo > 0);
+  // 楽譜の音符単位で表示。meter優先、無ければ直近triage(startInfo)、どちらも無ければ4分
+  tempoUnit = (mt0 && mt0.tempo_unit)
+    || (startInfo && startInfo.tempo && startInfo.tempo.unit) || 'quarter';
+  if (mt0) $('tempo').value = mt0.tempo;
+  renderTempo();
   $('score').src = image;
   $('upload').classList.add('hidden');
   $('app').classList.remove('hidden');
@@ -451,6 +601,13 @@ function initFromData(image, ov, mt, bt, mode) {
 // index から拍子情報を引く(無ければ既定)
 function meterFor(i) {
   return meter.measures.find(x => x.index === i) || { ts: '4/4', beats: 4, beat_groups: [] };
+}
+
+// その小節が拍子の変更点か(先頭、または直前の小節と拍子が違う)。拍子の編集はここだけ可
+function isTsAnchor(i) {
+  const pos = overlay.measures.findIndex(x => x.index === i);
+  if (pos <= 0) return true;
+  return meterFor(overlay.measures[pos - 1].index).ts !== meterFor(i).ts;
 }
 
 // overlay 多角形 + ラベル + クリック操作を #ov に描き直す(分割・結合後にも呼ぶ)
@@ -474,17 +631,21 @@ function renderPolys() {
   updateLoopHighlight();
 }
 
-// 調節画面の拍子ラベル(各小節の上に大きく)
+// 調節画面の拍子ラベル。拍子が変わる小節だけ、その頭に緑で表示(毎小節は出さない)
 function renderReviewLabels() {
   const g = $('rlabels');
   if (!g) return;
+  let prevLabel = null;
   g.innerHTML = overlay.measures.map(m => {
     const info = meterFor(m.index);
+    const bg = info.beat_groups && info.beat_groups.length ? ` (${info.beat_groups.join('+')})` : '';
+    const label = info.ts + bg;
+    if (label === prevLabel) return '';  // 前の小節と同じ拍子なら出さない
+    prevLabel = label;
     const [p0, p1] = [m.points[0], m.points[1]];
     const mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2;
-    const bg = info.beat_groups && info.beat_groups.length ? ` (${info.beat_groups.join('+')})` : '';
     return `<text x="${mx}" y="${my - 16}" text-anchor="middle" font-size="60" font-weight="bold" ` +
-           `fill="#111" stroke="#fff" stroke-width="7">${info.ts}${bg}</text>`;
+           `fill="#D55448" stroke="#fff" stroke-width="7">${label}</text>`;
   }).join('');
 }
 
@@ -639,7 +800,7 @@ function askStart(start) {
   $('st-den').value = parseInt(d) || 4;
   $('st-unit').value = '1';
   $('st-bpm').value = $('tempo').value;
-  $('startpopup').classList.remove('hidden');
+  showAnaAsk();  // 同じ解析ポップアップ内でスピナー→質問に切り替え
   return new Promise(res => { startResolve = res; });
 }
 // 確定した開始の拍子を、先頭から続く「同じ拍子だった小節(=誤って引き継がれた分)」に伝播
@@ -669,18 +830,18 @@ $('st-ok').onclick = () => {
     answer.tempo_text = $('st-unit').selectedOptions[0].textContent.trim() + ' = ' + raw;
   }
   startConfirmed = true;
-  $('startpopup').classList.add('hidden');
+  closeAnaPopup();  // 解析経路は直後に showAnaPopup('解析中…') で再表示、復元経路はそのまま閉じる
   if (startResolve) { const r = startResolve; startResolve = null; r(answer); }
 };
 
 // 人の答えを手元の meter に反映する(保険の経路。解析前に聞けた場合はサーバ側で反映済み)
 function applyStartAnswer(answer) {
-  if (answer.tempo) { $('tempo').value = answer.tempo; $('big-bpm').textContent = answer.tempo; }
+  if (answer.tempo) { $('tempo').value = answer.tempo; tempoUnit = answer.unit || 'quarter'; renderTempo(); }
   if (answer.ts) recascadeStart(answer.ts, beatsOf(answer.ts));
   const m0 = meter.measures[0];
-  if (m0 && answer.tempo) { m0.tempo = answer.tempo; m0.tempo_source = 'user'; }
+  if (m0 && answer.tempo) { m0.tempo = answer.tempo; m0.tempo_unit = answer.unit || 'quarter'; m0.tempo_source = 'user'; }
   if (m0 && answer.ts) m0.ts_source = 'user';
-  renderPolys();  // 低信頼(紫破線)の解除をラベルに反映
+  renderPolys();  // 低信頼(破線)の解除をラベルに反映
   persist();      // 開始情報の確定も自動保存
 }
 
@@ -689,7 +850,10 @@ function enterReview() {
   appMode = 'review';
   document.body.classList.add('review-mode');  // 楽譜中央寄せ + 背景オレンジ
   playing = false; if ($('play')) $('play').textContent = '▶再生';
-  $('review-ctrls').classList.remove('hidden');
+  $('app-title').textContent = '調整画面';
+  $('rename-input').value = currentPieceName || autoName();  // 名前欄に既定名を入れておく
+  $('review-panel').classList.remove('hidden');
+  $('review-foot').classList.remove('hidden');
   $('play-ctrls').classList.add('hidden');
   switchView('score');  // 調節中は楽譜を表示(view値は再生に入ったとき復元するため変えない)
   renderPolys();
@@ -706,12 +870,14 @@ function enterPlay() {
   }
   appMode = 'play';
   document.body.classList.remove('review-mode');
-  $('review-ctrls').classList.add('hidden');
+  $('review-foot').classList.add('hidden');
+  $('app-title').textContent = '指揮者っくま';
+  $('review-panel').classList.add('hidden');
   $('play-ctrls').classList.remove('hidden');
   if ($('rlabels')) $('rlabels').classList.add('hidden');
   cueIndex = 0;
   $('preN').value = pulsesAt(0).length;
-  $('big-bpm').textContent = $('tempo').value;
+  renderTempo();
   computeTimeline(); current = -1;
   switchView($('view').value);
   updatePlayUI();
@@ -723,9 +889,9 @@ function setReviewTool(t) {
   markMergeSel();
   ['edit', 'split', 'merge'].forEach(x => $('tool-' + x).classList.toggle('active', x === t));
   const hints = {
-    edit: '小節をクリック → 拍子・分け方を直す',
-    split: '小節線が抜けた所をクリック → そこで2つに分割',
-    merge: '余分な線で割れた所: 隣り合う2小節を順にクリック → 結合',
+    edit: '小節をクリックし編集',
+    split: '分割する地点をクリック',
+    merge: '結合する2小節をクリック',
   };
   $('tool-hint').textContent = hints[t];
   $('ov').style.cursor = t === 'split' ? 'col-resize' : 'pointer';
@@ -839,6 +1005,21 @@ function loopRange() {
   }
   return [start, end];
 }
+// 曲の終端時刻(最後の小節の末尾)。loopRange の末尾計算と同じロジック
+function pieceEnd() {
+  const n = measureStarts.length;
+  if (!n || measureStarts[n - 1] == null) return Infinity;
+  const info = meter.measures.find(x => x.index === overlay.measures[n - 1].index);
+  const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
+  return measureStarts[n - 1] + (info ? info.beats : 4) * (60 / tempo);
+}
+// 最後まで再生した後の停止処理。頭(最初の小節)を選び直し、次の▶で最初から再生できる状態にする
+function finishSolo() {
+  playing = false; pausedAt = null; current = -1;
+  document.querySelectorAll('polygon.active').forEach(p => p.classList.remove('active'));
+  if (overlay.measures.length) setCue(overlay.measures[0].index);
+  $('status').textContent = '再生終了';
+}
 // 指定時刻へジャンプ(単体=内部クロック / YouTube=シーク)
 function jumpTo(time) {
   current = -1;
@@ -924,19 +1105,21 @@ function updateMetro(phase) {
     metroSig = sig;
     const v = ngon(N, 210, 190, 130);
     metroV = v;
-    let eighths = '';  // 8分の刻みを小さい星で
+    let eighths = '';  // 8分の刻みは辺に垂直な短いティック(直線)で
     for (let j = 0; j < N; j++) {
       const a = v[j], b = v[(j + 1) % N], E = Math.max(1, Math.round(pulses[j] * 2));
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+      const px = -dy / len * 9, py = dx / len * 9;  // 辺に垂直・長さ9のベクトル
       for (let e = 1; e < E; e++) {
-        const f = e / E;
-        eighths += `<polygon points="${star(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 8, 3.5, 5)}" fill="#9ab873" opacity="0.8"/>`;
+        const f = e / E, mx = a[0] + dx * f, my = a[1] + dy * f;
+        eighths += `<line x1="${(mx - px).toFixed(1)}" y1="${(my - py).toFixed(1)}" x2="${(mx + px).toFixed(1)}" y2="${(my + py).toFixed(1)}" stroke="#9ab873" stroke-width="3" stroke-linecap="round"/>`;
       }
     }
     svg.innerHTML =
       (N > 1 ? `<polygon points="${v.map(p => p.join(',')).join(' ')}" fill="none" stroke="#555" stroke-width="2"/>` : '') +
       eighths +
-      v.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? 10 : 7}" fill="${i === 0 ? '#506D2F' : '#999'}"/>`).join('') +
-      `<g id="metro-marker"><polygon points="${star(0, 0, 20, 9, 6)}" fill="#9ab873" stroke="#506D2F" stroke-width="2"/></g>`;
+      v.map((p, i) => { const s = i === 0 ? 10 : 7; return `<rect x="${(p[0] - s).toFixed(1)}" y="${(p[1] - s).toFixed(1)}" width="${s * 2}" height="${s * 2}" fill="${i === 0 ? '#506D2F' : '#999'}"/>`; }).join('') +
+      `<g id="metro-marker"><circle r="15" fill="none" stroke="#506D2F" stroke-width="3"/><circle r="6" fill="#506D2F"/></g>`;
   }
   const v = metroV;
   let pos = v[0];
@@ -1169,10 +1352,11 @@ function updateScoreMini(k, inPre) {
 }
 
 function switchView(v) {
+  $('views').dataset.view = v;  // CSS側でPC時のレイアウト分岐に使う(譜読みは再生操作を右へ)
   $('score-wrap').classList.toggle('hidden', v !== 'score');
   $('metro-view').classList.toggle('hidden', v !== 'metro');
   $('bear-view').classList.toggle('hidden', v !== 'bear');
-  $('transport').classList.toggle('hidden', v === 'score');
+  $('transport').classList.remove('hidden');  // 全ビューで再生ボタンを出す(譜読みでも演奏できる)
   $('score-mini').classList.toggle('hidden', v === 'score');
   if (v !== 'score' && overlay) { lastStripKey = ''; updateScoreMini(current >= 0 ? current : cueIndex, false); }
   if (v === 'metro') { metroSig = ''; updateMetro(null); }
@@ -1204,6 +1388,11 @@ function tick() {
     if ($('loop').checked) {
       const [ls, le] = loopRange();
       if (t >= le) { jumpTo(ls); t = ls; }
+    } else if ($('src').value === 'solo' && t >= pieceEnd()) {
+      // 最後まで再生しきったら停止して頭出し(次の▶で最初から再生できる)
+      finishSolo();
+      updatePlayUI();
+      return requestAnimationFrame(tick);
     }
     const solo = $('src').value === 'solo';
     const inPre = solo && t < playFrom;  // 前拍中(本編の手前)
@@ -1278,10 +1467,45 @@ function startAudio() {
 }
 
 // ---- イベント ----
-$('analyze').onclick = async () => {
+// 経過秒カウンタ。AI通信は1〜2分かかることがあるため「動いている」ことを示す
+let anaTimer = null, anaStart = 0;
+function startAnaTimer() {
+  anaStart = Date.now();
+  stopAnaTimer();
+  const tickSub = () => {
+    const s = Math.floor((Date.now() - anaStart) / 1000);
+    if ($('ana-sub')) $('ana-sub').textContent = `⏱ ${s}秒 — AIが読み取り中(1〜2分かかることがあります)`;
+  };
+  tickSub();
+  anaTimer = setInterval(tickSub, 1000);
+}
+function stopAnaTimer() {
+  if (anaTimer) { clearInterval(anaTimer); anaTimer = null; }
+  if ($('ana-sub')) $('ana-sub').textContent = '';
+}
+// スピナー表示(質問セクションは隠す)
+function showAnaPopup(msg) {
+  $('ana-msg').textContent = msg;
+  $('ana-spinner').classList.remove('error');
+  $('ana-close-btn').classList.add('hidden');
+  $('ana-ask').classList.add('hidden');
+  $('ana-spin').classList.remove('hidden');
+  $('analyze-popup').classList.remove('hidden');
+}
+// 同じカード内で質問セクションに切り替え(スピナーを隠す)
+function showAnaAsk() {
+  $('ana-spin').classList.add('hidden');
+  $('ana-ask').classList.remove('hidden');
+  $('analyze-popup').classList.remove('hidden');
+}
+function closeAnaPopup() { $('analyze-popup').classList.add('hidden'); }
+$('ana-close-btn').onclick = closeAnaPopup;
+
+async function doAnalyze() {
   const f = $('file').files[0];
-  if (!f) { $('up-status').textContent = '写真を選んでください'; return; }
-  $('analyze').disabled = true;
+  if (!f) return;
+  showAnaPopup('小節を検出中…');
+  startAnaTimer();
   try {
     // 前段: 小節検出 + triage(開始の拍子・テンポが読めるか)。約10秒
     $('up-status').textContent = '小節を検出中…';
@@ -1296,11 +1520,13 @@ $('analyze').onclick = async () => {
     let answer = {};
     if (startInfo && startInfo.status === 'ask') {
       $('up-status').textContent = 'わからないところがあるっくま…';
-      answer = await askStart(startInfo);
+      answer = await askStart(startInfo);  // 同じカード内でスピナー→質問に切り替わる
+      showAnaPopup('解析中…');
     }
 
     // 後段: 全小節の拍子・テンポを読む。数十秒
-    $('up-status').textContent = '解析中… (Geminiが拍子とテンポを読み取り、数十秒)';
+    showAnaPopup('拍子とテンポを読み取り中…\n(数十秒かかります)');
+    $('up-status').textContent = '解析中…';
     const res2 = await fetch(`/process/read/${first.job}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(answer),
@@ -1308,14 +1534,19 @@ $('analyze').onclick = async () => {
     if (!res2.ok) throw new Error((await res2.json()).error || res2.statusText);
     const data = await res2.json();
     startInfo = data.start || startInfo;
+    stopAnaTimer();
+    closeAnaPopup();
     initFromData(data.image, data.overlay, data.meter, null);
     savePiece();  // 解析したら自動でライブラリに保存(未保存状態を作らない)
   } catch (e) {
+    stopAnaTimer();
     $('up-status').textContent = '解析に失敗: ' + e.message;
-  } finally {
-    $('analyze').disabled = false;
+    $('ana-msg').textContent = '解析に失敗しました: ' + e.message;
+    $('ana-spinner').classList.add('error');
+    $('ana-close-btn').classList.remove('hidden');
   }
-};
+}
+$('analyze').onclick = doAnalyze;
 
 $('sample').onclick = async () => {
   $('up-status').textContent = '読み込み中…';
@@ -1347,11 +1578,11 @@ async function loadLibrary() {
   try {
     const pieces = await fetch('/pieces').then(r => r.json());
     $('library').innerHTML = pieces.length
-      ? '<h3>▼ 保存した曲(クリックで再開)</h3>' + pieces.map(p =>
+      ? pieces.map(p =>
           `<div class="piece-card" data-pid="${p.id}">` +
           `<img src="${p.thumb || ''}"><span class="nm">${p.name}</span>` +
           `<small>${p.pageCount}ページ</small></div>`).join('')
-      : '';
+      : '<div class="empty">まだ保存した曲はありません</div>';
     $('library').querySelectorAll('.piece-card').forEach(c => c.onclick = () => loadPiece(c.dataset.pid));
   } catch (e) { /* 一覧取得失敗は無視 */ }
 }
@@ -1362,6 +1593,7 @@ async function loadPiece(pid) {
     const d = await fetch('/piece/' + pid).then(r => r.json());
     if (!d.pages || !d.pages.length) { $('up-status').textContent = 'この曲は読み込めません'; return; }
     currentPiece = pid; currentPieceName = d.name;
+    closeLibrary();  // 曲を選んだら選択ポップアップを閉じる
     const pg = d.pages[0];
     currentJob = (pg.image.match(/jobs\/([^/]+)/) || [])[1] || null;
     initFromData(pg.image, pg.overlay, pg.meter, null, 'play');  // enterPlay 内の updateURL で ?piece=&view= を設定
@@ -1456,7 +1688,8 @@ function resumeSolo() {
 // 再生ボタンの見た目を状態に合わせる(毎フレーム呼ぶが、変化時だけ描く)
 function updatePlayUI() {
   const on = isPlaying();
-  const key = on + '|' + (pausedAt != null) + '|' + $('preN').value;
+  const pre = $('pre').checked;
+  const key = on + '|' + (pausedAt != null) + '|' + $('preN').value + '|' + pre;
   if (key === lastUI) return;
   lastUI = key;
   const label = on ? '⏸一時停止' : (pausedAt != null ? '▶再開' : '▶再生');
@@ -1464,24 +1697,33 @@ function updatePlayUI() {
   const bp = $('big-play');
   if (bp) { bp.textContent = on ? '⏸' : '▶'; bp.classList.toggle('playing', on); }
   if ($('big-preN')) $('big-preN').textContent = $('preN').value;
+  const pn = document.querySelector('#transport .pre-note');
+  if (pn) pn.classList.toggle('hidden', !pre);  // 前拍オフなら「前振り N拍」を隠す
 }
 
 $('play').onclick = togglePlay;
 $('big-play').onclick = togglePlay;
+// 「前拍あり」切替で即時に表示へ反映(ONなら開始小節の拍数、OFFなら前振り表示を隠す)
+$('pre').onchange = () => {
+  $('preN').value = $('pre').checked ? pulsesAt(cueIndex).length : 0;
+  updatePlayUI();
+};
 const restart = () => { cueIndex = 0; pausedAt = null; playFromOrdinal(0); };
 $('restart').onclick = restart;
 $('big-restart').onclick = restart;
 
 // ---- テンポ設定(テンキー) ----
-function setTempo(n) {
-  n = Math.max(20, Math.min(400, n | 0));
-  $('tempo').value = n;
-  $('big-bpm').textContent = n;
+// 入力は表示単位(例: 2分音符)のBPM。内部($('tempo'))は4分換算に直して持つ
+function setTempo(beatBpm) {
+  const q = Math.max(20, Math.min(400, Math.round((beatBpm | 0) * tempoFactor())));
+  $('tempo').value = q;
+  renderTempo();
   computeTimeline(); current = -1;
 }
 function openKeypad() {
   kpBuf = '';
-  $('kp-val').textContent = $('tempo').value;
+  $('kp-val').textContent = Math.round(parseFloat($('tempo').value) / tempoFactor());
+  if ($('kp-note')) $('kp-note').textContent = NOTE_GLYPH[tempoUnit] || '♩';
   $('keypad').classList.remove('hidden');
 }
 function closeKeypad() { $('keypad').classList.add('hidden'); }
@@ -1505,10 +1747,21 @@ $('e-apply').onclick = () => {
   pushUndo();
   let info = meter.measures.find(x => x.index === selected);
   if (!info) { info = { index: selected }; meter.measures.push(info); }
-  info.ts = ($('e-ts').value.trim()) || '4/4';
-  info.beats = beatsOf(info.ts);
+  // 分け方(ふりかた)はどの小節でも編集できる
   info.beat_groups = $('e-bg').value.split(',').map(s => parseInt(s.trim())).filter(n => n > 0);
-  info.confidence = 1;  // 人が直した=確定(紫破線を解除)
+  info.confidence = 1;  // 人が直した=確定(破線を解除)
+  // 拍子は変更点の小節だけ。変えたら次の拍子変更点までの小節へまとめて反映(carry-forward)
+  if (isTsAnchor(selected)) {
+    const oldTs = info.ts, newTs = ($('e-ts').value.trim()) || '4/4';
+    info.ts = newTs; info.beats = beatsOf(newTs); info.ts_source = 'user';
+    const pos = overlay.measures.findIndex(x => x.index === selected);
+    for (let p = pos + 1; p < overlay.measures.length; p++) {
+      const m2 = meter.measures.find(x => x.index === overlay.measures[p].index);
+      if (!m2 || ['printed', 'user'].includes(m2.ts_source) || m2.ts !== oldTs) break;  // 次の変更点で止める
+      // 拍子と振り方(ふりかた)をまとめて後続へ反映。次の拍子変更点の手前まで
+      m2.ts = newTs; m2.beats = beatsOf(newTs); m2.beat_groups = info.beat_groups.slice();
+    }
+  }
   const poly = $('ov').querySelector(`polygon[data-i="${selected}"]`);
   if (poly) poly.classList.remove('lowconf');
   computeTimeline(); current = -1; refreshLabels();
@@ -1570,19 +1823,18 @@ async function savePiece() {
   } catch (e) { /* 失敗は次の操作で再試行 */ }
 }
 // 名前の変更(💾→✏)。いつでもリネームできる
-$('rename').onclick = async () => {
-  const name = prompt('曲の名前', currentPieceName || '');
-  if (name === null) return;
-  currentPieceName = name || currentPieceName || autoName();
+// 名前テキストボックス: 入力確定(change)で保存。空なら既定名に戻す
+$('rename-input').onchange = async () => {
+  currentPieceName = $('rename-input').value.trim() || autoName();
+  $('rename-input').value = currentPieceName;
   await savePiece();
-  $('tool-hint').textContent = `「${currentPieceName}」に変更しました`;
 };
 
 ['loop', 'loopA', 'loopB'].forEach(id => $(id).oninput = $(id).onchange = updateLoopHighlight);
-$('tempo').oninput = () => { computeTimeline(); current = -1; $('big-bpm').textContent = $('tempo').value; };
+$('tempo').oninput = () => { computeTimeline(); current = -1; renderTempo(); };
 $('view').onchange = () => { switchView($('view').value); updateURL(); };
 // アプリ背景テーマの切替(明るい ⇄ 森)
-$('theme-toggle').onclick = () => {
+if ($('theme-toggle')) $('theme-toggle').onclick = () => {
   theme = $('theme-toggle').checked ? 'leaves' : 'marble';
   localStorage.setItem('kuma_theme', theme);
   applyTheme();
@@ -1603,7 +1855,6 @@ $('ham-back').onclick = () => {
   history.replaceState(null, '', location.pathname);
   $('app').classList.add('hidden'); $('upload').classList.remove('hidden');
   $('up-status').textContent = '';
-  loadLibrary();
 };
 
 // 調節: ツール切替 / モード切替 / 戻す
@@ -1619,12 +1870,20 @@ window.addEventListener('keydown', e => {
   }
 });
 
+// TOPページ: ファイル選択 → 自動解析
+$('file').addEventListener('change', () => { if ($('file').files[0]) doAnalyze(); });
+// 練習ボタン → 曲選択ポップアップを開く
+function openLibrary() { $('library-popup').classList.remove('hidden'); loadLibrary(); }
+function closeLibrary() { $('library-popup').classList.add('hidden'); }
+$('prac-btn').onclick = openLibrary;
+$('lib-close-btn').onclick = closeLibrary;
+$('library-popup').onclick = (e) => { if (e.target.id === 'library-popup') closeLibrary(); };  // 外側タップで閉じる
+
 // 起動時: テーマ適用 + ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
 applyTheme();
 // メトロノーム音は初期オフ。設定で有効化し localStorage に記憶
 if (localStorage.getItem('kuma_snd') === '1') $('snd').checked = true;
 $('snd').onchange = () => localStorage.setItem('kuma_snd', $('snd').checked ? '1' : '0');
-loadLibrary();
 const params = new URLSearchParams(location.search);
 // 再生ビュー(譜読み/メトロノーム/しきくま)を先に反映 → enterPlay の switchView で復元される
 const savedView = params.get('view');
