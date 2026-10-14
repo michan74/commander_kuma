@@ -230,6 +230,9 @@
                            padding: 2px 10px; border-radius: 8px; }
   #transport .tempo-line:hover { background: var(--review-bg); }
   #transport .tempo-line #big-bpm { color: var(--accent); }
+  /* 音符SVG: font-size に合わせて拡縮しベースラインに揃える */
+  .note-ic { height: 0.9em; width: auto; vertical-align: -0.12em; }
+  #kp-note .note-ic { height: 42px; }
   /* 前振りは1まとまりで扱い、入らなければ「前振り N拍」ごと次の行へ送る(語中で割れない) */
   #transport .tempo-line .pre-note { font-size: 15px; font-weight: 500; color: #888; margin-left: 10px;
                                      display: inline-block; white-space: nowrap; }
@@ -480,13 +483,28 @@ let pausedAt = null, kpBuf = '', lastUI = '';  // 一時停止位置 / テンキ
 // テンポ表示の音符単位。内部($('tempo'))は4分換算のまま、表示だけこの単位で見せる
 let tempoUnit = 'quarter';
 const UNIT_FACTOR = { quarter: 1, half: 2, eighth: 0.5, dotted_quarter: 1.5, dotted_half: 3, whole: 4 };
-const NOTE_GLYPH = { quarter: '♩', half: '𝅗𝅥', eighth: '♪', dotted_quarter: '♩.', dotted_half: '𝅗𝅥.', whole: '𝅝' };
 function tempoFactor() { return UNIT_FACTOR[tempoUnit] || 1; }
+// 音符記号をSVGで描く(𝅗𝅥等のUnicode音符はフォント非対応端末で豆腐になるため)。currentColorで文字色追従
+function noteSvg(unit) {
+  const headF = '<ellipse cx="6.5" cy="26" rx="6" ry="4.3" transform="rotate(-22 6.5 26)" fill="currentColor"/>';
+  const headO = '<ellipse cx="6.5" cy="26" rx="6" ry="4.3" transform="rotate(-22 6.5 26)" fill="none" stroke="currentColor" stroke-width="2"/>';
+  const stem = '<rect x="11.4" y="5" width="2" height="21.5" fill="currentColor"/>';
+  const flag = '<path d="M13.4 5q6 3 3.5 11" fill="none" stroke="currentColor" stroke-width="2"/>';
+  const dot = '<circle cx="16.8" cy="26" r="1.9" fill="currentColor"/>';
+  let inner;
+  if (unit === 'half') inner = headO + stem;
+  else if (unit === 'eighth') inner = headF + stem + flag;
+  else if (unit === 'dotted_quarter') inner = headF + stem + dot;
+  else if (unit === 'dotted_half') inner = headO + stem + dot;
+  else if (unit === 'whole') inner = '<ellipse cx="9" cy="17" rx="7" ry="4.6" fill="none" stroke="currentColor" stroke-width="2.4"/>';
+  else inner = headF + stem;  // quarter
+  return `<svg class="note-ic" viewBox="0 0 20 34" aria-hidden="true">${inner}</svg>`;
+}
 // 4分換算の内部テンポ → 単位に合わせた表示(音符記号 + BPM)を #big-note/#big-bpm に反映
 function renderTempo() {
   const q = Math.max(20, parseFloat($('tempo').value) || 136);
   if ($('big-bpm')) $('big-bpm').textContent = Math.round(q / tempoFactor());
-  if ($('big-note')) $('big-note').textContent = NOTE_GLYPH[tempoUnit] || '♩';
+  if ($('big-note')) $('big-note').innerHTML = noteSvg(tempoUnit);
 }
 let lastStripKey = '';  // updateScoreMini の変化検知キー
 let startConfirmed = false;  // 開始の拍子・テンポをユーザーに確認済みか(自律: 低信頼なら聞く)
@@ -1765,7 +1783,7 @@ function setTempo(beatBpm) {
 function openKeypad() {
   kpBuf = '';
   $('kp-val').textContent = Math.round(parseFloat($('tempo').value) / tempoFactor());
-  if ($('kp-note')) $('kp-note').textContent = NOTE_GLYPH[tempoUnit] || '♩';
+  if ($('kp-note')) $('kp-note').innerHTML = noteSvg(tempoUnit);
   $('keypad').classList.remove('hidden');
 }
 function closeKeypad() { $('keypad').classList.add('hidden'); }
