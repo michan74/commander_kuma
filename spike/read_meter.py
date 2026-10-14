@@ -47,6 +47,11 @@ PROMPT = """吹奏楽のパート譜の各段(五線1行)を、水平に切り�
   拍のまとまりを表します。その区切りを8分音符の数で beat_groups に入れてください
   (例: 5/8 で「2つ+3つ」に連桁されていれば [2,3])。4分系(x/4)や判断できない時は空配列。
 - 鉛筆の手書き(音名・丸囲みなど)は無視してください。
+- 複数小節休み(長休符)に注意してください。太い横棒1本で描かれ、その真上に小節数の数字
+  (例: 4)が書かれます。これは「その数ぶん休む」という意味で、1つの枠で複数小節を表します。
+  見つけたら、その数字を rest_measures に入れてください(例: 4小節休みなら 4)。
+  音符や通常の休符(全休符など1小節ぶん)しかない枠は rest_measures=1 です。
+  数字が読めない時も 1 にしてください(勝手に推測しない)。
 枠を増やしたり減らしたりせず、渡した枠番号ちょうどに1つずつ答えてください。
 
 さらに、各段の一番右(最後の小節線より後ろ)に、次の段への「予告の拍子記号」が小さく
@@ -80,6 +85,10 @@ class MeasureMeter(BaseModel):
     beat_groups: list[int] = Field(
         description="分母が8の不規則拍子(5/8,7/8等)で、音符の連桁(ビーム)の区切りが示す拍の"
                     "まとまりを8分音符の数で(例 5/8の2+3なら[2,3])。4分系(x/4)や読めない時は空配列")
+    rest_measures: int = Field(
+        default=1,
+        description="複数小節休み(長休符)なら、その枠が表す小節数。枠の上に書かれた数字"
+                    "(太い横棒の上の 4 等)を入れる。通常の小節や判断できない時は 1")
 
 
 class StaffCourtesy(BaseModel):
@@ -227,6 +236,7 @@ def main():
     # NOTE: ts_source は多数決を取らず最終 run の値を使う(拍子そのものは多数決)。
     #   既定 METER_RUNS=1 では差が出ないため
     src_last = {m.index: m.ts_source for m in results[-1].measures}
+    rest_last = {m.index: getattr(m, "rest_measures", 1) for m in results[-1].measures}
     # NOTE: テンポは多数決を取らない(beat_groups と同じく最終 run の値を使う)。既定 METER_RUNS=1 では
     #   差が出ず、テンポ表示は拍子より読み間違いが少ないため
     tempo_last = {t.index: t for t in results[-1].tempos}
@@ -244,6 +254,9 @@ def main():
         m = {"index": i, "ts": ts, "beats": b, "beat_groups": bg_last.get(i, []),
              "ts_source": src_last.get(i, "carried"),
              "confidence": round(cnt / len(results), 2)}
+        # 複数小節休み(長休符)。>1 のときだけ持たせる(検証用: 本当に数字を読めているか)
+        if (rm := rest_last.get(i, 1)) and rm > 1:
+            m["rest_measures"] = rm
         # NOTE: テンポは表示のある小節にだけ付ける(anchor)。全小節に展開しない。
         #   引き継ぎ(carry-forward)はフロントの measureTempos が担う
         t = tempo_last.get(i)

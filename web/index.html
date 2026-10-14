@@ -610,6 +610,19 @@ function isTsAnchor(i) {
   return meterFor(overlay.measures[pos - 1].index).ts !== meterFor(i).ts;
 }
 
+// この枠が表す小節数(複数小節休み=長休符なら>1、通常は1)
+function restN(info) { return info && info.rest_measures > 1 ? info.rest_measures : 1; }
+// 全枠を複数小節休みで展開した総小節数
+function totalMeasures() {
+  return overlay.measures.reduce((n, m) => n + restN(meterFor(m.index)), 0);
+}
+// 配列位置 pos の枠の「最初の小節番号」(1始まり。手前の休みを展開して数える)
+function measureNumberAt(pos) {
+  let n = 1;
+  for (let p = 0; p < pos; p++) n += restN(meterFor(overlay.measures[p].index));
+  return n;
+}
+
 // overlay 多角形 + ラベル + クリック操作を #ov に描き直す(分割・結合後にも呼ぶ)
 function renderPolys() {
   const svg = $('ov');
@@ -909,7 +922,7 @@ function computeTimeline() {
     measureStarts = overlay.measures.map((m) => {
       const t = start + acc * spb;
       const info = meter.measures.find(x => x.index === m.index);
-      acc += info ? info.beats : per;
+      acc += (info ? info.beats : per) * restN(info);  // 長休符は小節数ぶん進める
       return t;
     });
   } else {
@@ -969,10 +982,13 @@ function buildClicks() {
       const info = meter.measures.find(x => x.index === m.index);
       const pulses = info ? measurePulses(info) : [1, 1, 1, 1];
       let off = 0;
-      pulses.forEach((dur, k) => {
-        clicks.push({ t: measureStarts[i] + off * spb, accent: k === 0 });
-        off += dur;
-      });
+      // 長休符は同じ拍を小節数ぶん繰り返す(各小節の頭を強拍に)
+      for (let rep = 0; rep < restN(info); rep++) {
+        pulses.forEach((dur, k) => {
+          clicks.push({ t: measureStarts[i] + off * spb, accent: k === 0 });
+          off += dur;
+        });
+      }
     });
   } else {
     const starts = new Set(measureStarts.filter(x => x !== null));
@@ -1001,7 +1017,7 @@ function loopRange() {
   } else {
     const info = meter.measures.find(x => x.index === overlay.measures[b].index);
     const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
-    end = (measureStarts[b] ?? 0) + (info ? info.beats : 4) * (60 / tempo);
+    end = (measureStarts[b] ?? 0) + (info ? info.beats : 4) * restN(info) * (60 / tempo);
   }
   return [start, end];
 }
@@ -1011,7 +1027,7 @@ function pieceEnd() {
   if (!n || measureStarts[n - 1] == null) return Infinity;
   const info = meter.measures.find(x => x.index === overlay.measures[n - 1].index);
   const tempo = Math.max(20, parseFloat($('tempo').value) || 136);
-  return measureStarts[n - 1] + (info ? info.beats : 4) * (60 / tempo);
+  return measureStarts[n - 1] + (info ? info.beats : 4) * restN(info) * (60 / tempo);
 }
 // 最後まで再生した後の停止処理。頭(最初の小節)を選び直し、次の▶で最初から再生できる状態にする
 function finishSolo() {
@@ -1066,10 +1082,13 @@ function beatPhase(t) {
   const pulses = info ? measurePulses(info) : [1, 1, 1, 1];
   const spb = 60 / Math.max(20, parseFloat($('tempo').value) || 136);
   let off = measureStarts[k];
-  for (let j = 0; j < pulses.length; j++) {
-    const d = pulses[j] * spb;
-    if (t < off + d) return { k, pulses, j, frac: (t - off) / d };
-    off += d;
+  // 長休符の枠は同じ拍を小節数ぶん繰り返す(休み中も指揮図形が拍を刻み続ける)
+  for (let rep = 0; rep < restN(info); rep++) {
+    for (let j = 0; j < pulses.length; j++) {
+      const d = pulses[j] * spb;
+      if (t < off + d) return { k, pulses, j, frac: (t - off) / d };
+      off += d;
+    }
   }
   return { k, pulses, j: pulses.length - 1, frac: 1 };
 }
@@ -1292,9 +1311,13 @@ function updateScoreMini(k, inPre) {
   const key = `${k}|${inPre}`;
   const label = $('strip-label');
   if (label && key !== lastStripKey) {
-    label.textContent = inPre
-      ? `(前振り ${$('preN').value}拍)`
-      : k >= 0 ? `小節 ${k + 1} / ${overlay.measures.length}` : '';
+    let txt = '';
+    if (inPre) txt = `(前振り ${$('preN').value}拍)`;
+    else if (k >= 0 && k < overlay.measures.length) {
+      const info = meterFor(overlay.measures[k].index), first = measureNumberAt(k), n = restN(info);
+      txt = (n > 1 ? `小節 ${first}〜${first + n - 1}` : `小節 ${first}`) + ` / ${totalMeasures()}`;
+    }
+    label.textContent = txt;
   }
   if (!imgReady || key === lastStripKey) return;
   lastStripKey = key;
@@ -1424,9 +1447,16 @@ function tick() {
     if (solo && t < playFrom) {
       $('status').textContent = '♪ 前拍…';
     } else {
-      const info = current >= 0 ? meter.measures.find(x => x.index === current) : null;
+      const pos = current;  // measureStarts の配列位置
+      const info = pos >= 0 && pos < overlay.measures.length ? meterFor(overlay.measures[pos].index) : null;
+      // 長休符の枠は「小節 2〜5」のように範囲で表示(展開後の総小節数ぶんの何番目か)
+      let label = '—';
+      if (info) {
+        const first = measureNumberAt(pos), n = restN(info);
+        label = n > 1 ? `小節 ${first}〜${first + n - 1}` : `小節 ${first}`;
+      }
       $('status').textContent =
-        `${solo ? '' : t.toFixed(1) + 's / '}小節 ${current + 1}/${overlay.measures.length}  ${info ? info.ts : ''}`;
+        `${solo ? '' : t.toFixed(1) + 's / '}${label}/${totalMeasures()}  ${info ? info.ts : ''}`;
     }
   }
   updatePlayUI();
