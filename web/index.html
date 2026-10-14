@@ -1513,7 +1513,7 @@ function startAnaTimer() {
   stopAnaTimer();
   const tickSub = () => {
     const s = Math.floor((Date.now() - anaStart) / 1000);
-    if ($('ana-sub')) $('ana-sub').textContent = `⏱ ${s}秒 — 指揮くまAIエージェントが読み取り中！`;
+    if ($('ana-sub')) $('ana-sub').textContent = `${s}秒 — 指揮くまAIエージェントが読み取り中！`;
   };
   tickSub();
   anaTimer = setInterval(tickSub, 1000);
@@ -1564,7 +1564,7 @@ async function doAnalyze() {
     }
 
     // 後段: 全小節の拍子・テンポを読む。数十秒
-    showAnaPopup('拍子とテンポを読み取り中…\n(数十秒かかります)');
+    showAnaPopup('拍子とテンポを読み取り中…\n');
     $('up-status').textContent = '解析中…';
     const res2 = await fetch(`/process/read/${first.job}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
