@@ -1636,6 +1636,16 @@ function showAnaAsk() {
 function closeAnaPopup() { $('analyze-popup').classList.add('hidden'); }
 $('ana-close-btn').onclick = closeAnaPopup;
 
+// エラー応答からメッセージを安全に取り出す。504等は本文がHTML(非JSON)なので res.json() は使わない
+// (iOS Safari では非JSONを json() すると「The string did not match the expected pattern」で落ちる)
+async function errText(res) {
+  if (res.status === 504) return '解析が時間切れになりました(サーバの上限超過)。もう一度お試しください。';
+  try {
+    const t = await res.text();
+    try { return JSON.parse(t).error || res.statusText || ('HTTP ' + res.status); }
+    catch (_) { return res.statusText || ('HTTP ' + res.status); }
+  } catch (_) { return 'HTTP ' + res.status; }
+}
 // fileArg/nameArg 省略時は #file のアップロード画像。審査用サンプルは fetch した File を渡す
 async function doAnalyze(fileArg, nameArg) {
   const f = fileArg || $('file').files[0];
@@ -1647,7 +1657,7 @@ async function doAnalyze(fileArg, nameArg) {
     $('up-status').textContent = '小節を検出中…';
     const fd = new FormData(); fd.append('file', f);
     const res = await fetch('/process/detect', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+    if (!res.ok) throw new Error(await errText(res));
     const first = await res.json();
     currentJob = first.job; currentPiece = null; currentPieceName = nameArg || autoName();
     startInfo = first.start || null;
@@ -1667,7 +1677,7 @@ async function doAnalyze(fileArg, nameArg) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(answer),
     });
-    if (!res2.ok) throw new Error((await res2.json()).error || res2.statusText);
+    if (!res2.ok) throw new Error(await errText(res2));
     const data = await res2.json();
     startInfo = data.start || startInfo;
     stopAnaTimer();

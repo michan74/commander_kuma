@@ -11,6 +11,7 @@ import os
 import sys
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
 from pathlib import Path
 
@@ -116,14 +117,14 @@ class Result(BaseModel):
                     "鉛筆の書き込みは含めない。無ければ空")
 
 
-def ask(client, out_dir, indices_by_staff, hint=""):
-    contents = [PROMPT + hint]
-    for si, indices in indices_by_staff.items():
-        # NOTE: wide_NN(AI入力用の広いクロップ)を使う。staff_NN(検出用の狭いクロップ)だと
-        #   段の上下に書かれるテンポ表示が切れて、𝅗𝅥=134 を ♩=134 と誤読する(速さが半分になる)
-        contents.append(f"段{si} (枠番号 {indices}): wide_{si:02d}.jpg")
-        contents.append(types.Part.from_bytes(
-            data=(out_dir / f"wide_{si:02d}.jpg").read_bytes(), mime_type="image/jpeg"))
+# NOTE: wide_NN(AI入力用の広いクロップ)を使う。staff_NN(検出用の狭いクロップ)だと
+#   段の上下に書かれるテンポ表示が切れて、𝅗𝅥=134 を ♩=134 と誤読する(速さが半分になる)
+def _wide_part(out_dir, si):
+    return types.Part.from_bytes(
+        data=(out_dir / f"wide_{si:02d}.jpg").read_bytes(), mime_type="image/jpeg")
+
+
+def _generate(client, contents):
     config = types.GenerateContentConfig(
         response_mime_type="application/json", response_schema=Result)
     for attempt in range(5):
@@ -133,6 +134,62 @@ def ask(client, out_dir, indices_by_staff, hint=""):
             if attempt == 4:
                 raise
             time.sleep(2 ** attempt)
+
+
+# 従来方式: 全段を1リクエストで読む(モデルが段をまたいで拍子を引き継ぐ)
+def ask(client, out_dir, indices_by_staff, hint=""):
+    contents = [PROMPT + hint]
+    for si, indices in indices_by_staff.items():
+        contents.append(f"段{si} (枠番号 {indices}): wide_{si:02d}.jpg")
+        contents.append(_wide_part(out_dir, si))
+    return _generate(client, contents)
+
+
+# 1段だけ読む(並列用)。段末予告の段番号は確定している si に固定しておく
+def ask_staff(client, out_dir, si, indices, hint=""):
+    contents = [PROMPT + hint, f"段{si} (枠番号 {indices}): wide_{si:02d}.jpg",
+                _wide_part(out_dir, si)]
+    r = _generate(client, contents)
+    for c in r.end_courtesies:
+        c.staff = si
+    return r
+
+
+# 並列方式: 段ごとにリクエストを分けて同時実行し、1つの Result にマージする。
+#   出力生成が段ぶんに分散・並列化されるのでレイテンシが縮む。段をまたぐ拍子の引き継ぎは
+#   モデルには見えないので、呼び出し側(main)で ts_source=carried/unknown を前方穴埋めする。
+#   開始ヒントは「最初の枠」を含む段にだけ渡す(他段の頭に誤って適用されるのを防ぐ)。
+def ask_parallel(client, out_dir, indices_by_staff, hint, first_idx):
+    items = list(indices_by_staff.items())
+
+    def one(item):
+        si, indices = item
+        h = hint if (first_idx is not None and first_idx in indices) else ""
+        return ask_staff(client, out_dir, si, indices, h)
+
+    with ThreadPoolExecutor(max_workers=min(8, len(items) or 1)) as ex:
+        parts = list(ex.map(one, items))
+    measures, courtesies, tempos = [], [], []
+    for p in parts:
+        measures.extend(p.measures)
+        courtesies.extend(p.end_courtesies)
+        tempos.extend(p.tempos)
+    return Result(measures=measures, end_courtesies=courtesies, tempos=tempos)
+
+
+# 段をまたぐ拍子の前方穴埋め。手がかりの無い枠(carried/unknown)を直前の確定拍子で埋める。
+#   単発リクエストならモデルが全段を見て埋めていた値を、並列では Python が担う(単発でも無害)。
+def carry_forward_ts(out):
+    last = None
+    for m in out:
+        if m.get("ts_source") in ("printed", "courtesy", "user") and m.get("ts"):
+            last = m["ts"]
+        elif m.get("ts_source") in ("carried", "unknown") and last:
+            m["ts"] = last
+            try:
+                m["beats"] = beats_of(last)
+            except Exception:
+                pass
 
 
 def beats_of(ts):
@@ -225,8 +282,14 @@ def main():
         apply_courtesy(r, first_of_staff)
         results = [r]
     else:
+        # 既定は段ごと並列(速さ優先)。METER_PARALLEL=0 で従来の全段1リクエストに戻せる
+        parallel = os.environ.get("METER_PARALLEL", "1").lower() in ("1", "true")
+        first_idx = all_idx[0] if all_idx else None
         for _ in range(runs):
-            r = ask(client, out_dir, indices_by_staff, hint)
+            if parallel:
+                r = ask_parallel(client, out_dir, indices_by_staff, hint, first_idx)
+            else:
+                r = ask(client, out_dir, indices_by_staff, hint)
             apply_courtesy(r, first_of_staff)
             results.append(r)
         cache.write_text(results[-1].model_dump_json(indent=2))
@@ -267,6 +330,7 @@ def main():
             m["tempo_source"] = "printed"
         out.append(m)
     apply_start(out, start)
+    carry_forward_ts(out)  # 段をまたぐ拍子の引き継ぎ(並列で各段が独立に読むため)
     (out_dir / "meter_ai.json").write_text(
         json.dumps({"measures": out}, ensure_ascii=False, indent=2))
 
