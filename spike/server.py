@@ -209,5 +209,14 @@ def save_piece(body: dict = Body(...)):
     return {"id": pid}
 
 
+# 曲を削除(ライブラリから除く)。ページ(ジョブ)は LRU で自然に消えるので触らない
+@app.delete("/piece/{pid}")
+def delete_piece(pid: str):
+    f = PIECES / f"{pid}.json"
+    if f.exists():
+        f.unlink()
+    return {"ok": True}
+
+
 app.mount("/jobs", StaticFiles(directory=str(JOBS)), name="jobs")
 app.mount("/", StaticFiles(directory="/web", html=True), name="web")

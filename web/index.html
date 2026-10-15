@@ -45,11 +45,18 @@
   .lib-head strong { font-size: 17px; color: var(--bark); }
   .lib-close { background: none; border: none; font-size: 28px; line-height: 1; color: var(--brown);
                cursor: pointer; padding: 0 4px; }
-  #library { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+  #library, #judge-list { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
   #library .empty { color: #888; font-size: 14px; padding: 20px; }
-  .piece-card { background: #fff; border: 1.5px solid var(--brown); border-radius: 0; padding: 8px;
+  /* 審査用サンプルの説明文(ポップアップ上部) */
+  .judge-note { font-size: 13px; color: #666; margin: -4px 0 4px; line-height: 1.5; }
+  .piece-card { position: relative; background: #fff; border: 1.5px solid var(--brown); border-radius: 0; padding: 8px;
                 width: 150px; cursor: pointer; text-align: center; transition: background .12s; }
   .piece-card:hover { background: var(--review-bg); }
+  /* 曲カードの削除(×)。右上に小さく。ライブラリのみ(審査用サムネには付けない) */
+  .pc-del { position: absolute; top: 2px; right: 2px; width: 24px; height: 24px; border: none;
+            background: #0007; color: #fff; font-size: 16px; line-height: 1; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; padding: 0; }
+  .pc-del:hover { background: var(--pumpkin); }
   .piece-card img { width: 100%; height: 80px; object-fit: cover; background: #eee; }
   .piece-card .nm { display: block; font-size: 13px; margin-top: 6px; color: var(--bark); font-weight: 600;
                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -93,6 +100,9 @@
     /* 調整モード: 楽譜を中央寄せ・大きく(余白いっぱい) */
     body.review-mode #views { max-width: 1100px; }
     body.review-mode #score-wrap { max-width: 100%; margin: 0 auto; }
+    /* PC・再生時: タイトル「指揮者っくま」の文字をロゴ画像に差し替え(調整画面は文字のまま) */
+    body:not(.review-mode) #app-title { display: none; }
+    body:not(.review-mode) #app-logo { display: block; }
   }
   #metro-view, #bear-view { text-align: center; padding-top: 10px; }
   /* SVGに明示的な高さを与える(未指定だと150pxになり図形がはみ出てtransportに重なる)。
@@ -109,10 +119,22 @@
   #menu-btn { font-size: 20px; padding: 6px 11px; line-height: 1; background: transparent; color: var(--text); border-radius: 0; }
   #settings-btn { font-size: 24px; padding: 5px 13px; line-height: 1; margin-left: auto; border-radius: 0; background: transparent; color: var(--text); }
   #play-ctrls { flex: 1; }  /* 設定(⚙)を画面右端へ寄せるため幅いっぱいに */
-  #ham-menu { position: fixed; top: 56px; left: 0; z-index: 50; background: var(--bark);
-              border: 1px solid #444; border-radius: 0 0 12px 0; padding: 10px;
-              display: flex; flex-direction: column; gap: 8px; min-width: 180px;
-              box-shadow: 4px 4px 16px #0006; }
+  /* ヘッダーのタイトルロゴ。既定は非表示、PC・再生時だけ表示(上の @media) */
+  #app-logo { display: none; height: 30px; width: auto; cursor: pointer; }
+  #app-title { cursor: pointer; }
+  /* ドロワーメニュー: 左から出る全高サイドパネル。アプリ色(marble)に合わせ黒をやめる。
+     既定は画面外(translateX -100%)、.open で出てくる */
+  #ham-menu { position: fixed; top: 0; left: 0; z-index: 50; height: 100vh; width: min(78vw, 280px);
+              box-sizing: border-box; background: var(--marble); border-right: 1.5px solid var(--brown);
+              box-shadow: 4px 0 24px #0003; padding: 72px 16px 16px;
+              display: flex; flex-direction: column; gap: 12px;
+              transform: translateX(-100%); transition: transform .22s ease; }
+  #ham-menu.open { transform: translateX(0); }
+  /* ドロワーの項目: 白地+brown枠+四角角でアプリに統一(黒地をやめる) */
+  #ham-menu .ham-item { background: #fff; border: 1.5px solid var(--brown); color: var(--bark);
+                        font-size: 15px; font-weight: 600; padding: 14px 16px; text-align: left;
+                        cursor: pointer; font-family: inherit; border-radius: 0; }
+  #ham-menu .ham-item:active { background: var(--review-bg); }
   /* モバイル */
   @media (max-width: 700px) {
     main { padding: 8px; }
@@ -136,16 +158,35 @@
   }
   /* 設定ポップアップ */
   .spopup { position: fixed; inset: 0; z-index: 40; background: #0003; display: flex;
-            align-items: flex-start; justify-content: flex-end; padding: 60px 16px 0; }
-  .sp-card { background: #f5f3f0; border-radius: 14px; padding: 18px; min-width: 240px;
-             box-shadow: 0 8px 30px #0005; display: flex; flex-direction: column; gap: 14px; }
+            align-items: flex-start; justify-content: flex-end; padding: 0; }
+  /* 画面右上の隅にピタッと付ける。position:relative で閉じ×をカード内の右上に収める
+     (relative が無いと kp-close の absolute が .spopup 基準になり画面隅へ飛ぶ) */
+  .sp-card { position: relative; background: #f5f3f0; border-radius: 0; padding: 18px; min-width: 240px;
+             border: 1.5px solid var(--brown); box-shadow: 0 8px 30px #0005;
+             display: flex; flex-direction: column; gap: 14px; }
+  #settings-close { top: 12px; right: 12px; }
   .sp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
   .sp-head strong { font-size: 16px; color: #333; }
   .sp-row { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #222; }
   .sp-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+  /* 前拍の拍数ステッパー(− 数 +)。四角角・brown枠でアプリに合わせる */
+  .pre-stepper { display: inline-flex; align-items: center; }
+  .pre-step { width: 30px; height: 30px; padding: 0; border: 1.5px solid var(--brown);
+              background: var(--marble); color: var(--bark); font-size: 18px; line-height: 1;
+              cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .pre-step:active { background: var(--review-bg); }
+  #preN { width: 42px; height: 30px; box-sizing: border-box; text-align: center;
+          border: 1.5px solid var(--brown); border-left: none; border-right: none;
+          background: #fff; color: var(--bark); font-size: 15px; -moz-appearance: textfield; }
+  #preN::-webkit-inner-spin-button, #preN::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  /* 前拍オフのときはステッパーを無効化(薄く・操作不可) */
+  .pre-stepper.off { opacity: .4; pointer-events: none; }
   /* 再生モードのモード選択 */
   /* プルダウン: 四角角 + 下向き矢印(v)を文字の左側に。native矢印は消して自前のSVGを左配置 */
+  /* 矢印(v)は文字のすぐ左(左8px)。セレクトごとヘッダー中央へ絶対配置し「∨ テキスト」を一塊で中央に。
+     幅はJS(fitViewWidth)で選択中の文字にぴったり合わせ、箱の余白で中心がズレないようにする */
   #view { font-size: 15px; padding: 7px 14px 7px 30px; border-radius: 0; border: none;
+          position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
           background-color: transparent; color: var(--text); cursor: pointer;
           appearance: none; -webkit-appearance: none;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23506D2F' stroke-width='2'/%3E%3C/svg%3E");
@@ -294,6 +335,8 @@
   <div class="top-btns">
     <label id="load-btn" for="file" class="top-btn top-outline">楽譜読み込み</label>
     <button id="prac-btn" class="top-btn top-fill">練習</button>
+    <!-- 審査員向け: 用意した楽譜写真を選んで解析を試せる -->
+    <button id="judge-btn" class="top-btn top-outline">審査用サンプル</button>
   </div>
 </section>
 
@@ -302,6 +345,8 @@
 <header>
   <button id="menu-btn" class="btn sub" title="メニュー">☰</button>
   <strong id="app-title">指揮者っくま</strong>
+  <!-- PC・再生時はタイトル文字の代わりにロゴ画像を出す(CSSで切替) -->
+  <img id="app-logo" src="images/title_logo.png" alt="指揮者っくま">
   <!-- JS参照用(非表示) -->
   <button id="back" class="hidden"></button>
 
@@ -326,9 +371,9 @@
 </header>
 
 <!-- ハンバーガーメニュー -->
-<div id="ham-menu" class="ham-menu hidden">
-  <button id="ham-review" class="btn sub">← 調節に戻る</button>
-  <button id="ham-back" class="btn sub">← 別の写真</button>
+<div id="ham-menu">
+  <button id="ham-review" class="ham-item">← 調節に戻る</button>
+  <button id="ham-back" class="ham-item">← 別の写真</button>
 </div>
 <main>
   <!-- 調整画面本体(ヘッダーから移設)。調整モードだけ表示 -->
@@ -397,7 +442,12 @@
       <button id="settings-close" class="kp-close" title="閉じる">×</button>
     </div>
     <label class="sp-row"><input id="snd" type="checkbox"> メトロノーム音</label>
-    <label class="sp-row"><input id="pre" type="checkbox" checked> 前拍あり <input id="preN" type="number" value="4" readonly style="width:36px;border:none;background:transparent;color:#888">拍</label>
+    <label class="sp-row"><input id="pre" type="checkbox" checked> 前拍あり
+      <span id="pre-stepper" class="pre-stepper">
+        <button type="button" id="preDec" class="pre-step" tabindex="-1" aria-label="前拍を減らす">−</button>
+        <input id="preN" type="number" min="1" max="16" value="4">
+        <button type="button" id="preInc" class="pre-step" tabindex="-1" aria-label="前拍を増やす">＋</button>
+      </span>拍</label>
     <!-- <label class="sp-row"><input id="theme-toggle" type="checkbox"> ダークモード</label> -->
     <label class="sp-row"><input id="loop" type="checkbox"> ループ</label>
     <div class="sp-row" id="loop-range-row">
@@ -467,6 +517,18 @@
   </div>
 </div>
 
+<!-- 審査用サンプルを選ぶポップアップ(「審査用サンプル」から開く)。選ぶと実際のAI解析に進む -->
+<div id="judge-popup" class="modal hidden">
+  <div class="lib-card">
+    <div class="lib-head">
+      <strong>審査用サンプルを選ぶ</strong>
+      <button id="judge-close-btn" class="lib-close" title="閉じる">×</button>
+    </div>
+    <p class="judge-note">楽譜写真を1枚選ぶと、実際に小節検出→拍子・テンポ読み取りの解析が走ります。</p>
+    <div id="judge-list"></div>
+  </div>
+</div>
+
 <script>
 let overlay, beats, meter, measureStarts = [], player, current = -1, tickStarted = false;
 let currentJob = null;   // いま見ているページのジョブID
@@ -475,6 +537,7 @@ let actx, clicks = [], nextClick = 0, lastT = 0;
 let playing = false, playStart = 0, baseT = 0, selected = -1;
 let loopAnchor = null, clickTimer = null;  // ループ範囲をクリックで指定するため
 let playFrom = 0, preClicks = [], nextPre = 0;  // 前拍: playFrom から本編、その手前は前拍(小節は光らせない)
+let preManual = false;  // 前拍の拍数をユーザーが手動指定したか(開始小節を変えると自動へ戻す)
 let cueIndex = 0;  // 頭出しで選んだ開始小節(通し番号)
 let metroV = [], metroSig = '';  // メトロノーム図形の頂点と形のキー
 let appMode = 'review', reviewTool = 'edit', mergeSel = -1, currentImage = '';  // 調節/再生の切替
@@ -726,6 +789,7 @@ function cellsFromState() {
     return {
       staff: m.staff, points: m.points.map(pt => pt.slice()),
       ts: mi.ts, beats: mi.beats, beat_groups: (mi.beat_groups || []).slice(), confidence: mi.confidence,
+      rest_measures: mi.rest_measures,  // 長休符(複数小節休み)の小節数を分割/結合で失わない
     };
   });
 }
@@ -735,6 +799,7 @@ function rebuild(cells) {
   meter.measures = cells.map((c, i) => {
     const o = { index: i, ts: c.ts, beats: c.beats, beat_groups: c.beat_groups };
     if (c.confidence !== undefined) o.confidence = c.confidence;
+    if (c.rest_measures > 1) o.rest_measures = c.rest_measures;  // 長休符の小節数を保持(>1のみ)
     return o;
   });
   mergeSel = -1;
@@ -911,6 +976,7 @@ function enterPlay() {
   $('play-ctrls').classList.remove('hidden');
   if ($('rlabels')) $('rlabels').classList.add('hidden');
   cueIndex = 0;
+  preManual = false;  // 再生入場=開始小節0にリセットなので前拍も自動へ戻す
   $('preN').value = pulsesAt(0).length;
   renderTempo();
   computeTimeline(); current = -1;
@@ -1396,7 +1462,19 @@ function updateScoreMini(k, inPre) {
   });
 }
 
+// モード選択の幅を「選択中の文字」にぴったり合わせる。箱が最長肢(メトロノーム)幅に固定されると
+// 中央配置時に短い文字が中心からズレるため、毎回測って width を更新する
+function fitViewWidth() {
+  const sel = $('view');
+  if (!sel || !sel.selectedOptions[0]) return;
+  const cs = getComputedStyle(sel);
+  const ctx = (fitViewWidth._ctx || (fitViewWidth._ctx = document.createElement('canvas').getContext('2d')));
+  ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const w = ctx.measureText(sel.selectedOptions[0].textContent).width;
+  sel.style.width = Math.ceil(w + 30 + 14 + 2) + 'px';  // 左pad(矢印30)+右pad(14)+予備
+}
 function switchView(v) {
+  fitViewWidth();
   $('views').dataset.view = v;  // CSS側でPC時のレイアウト分岐に使う(譜読みは再生操作を右へ)
   $('score-wrap').classList.toggle('hidden', v !== 'score');
   $('metro-view').classList.toggle('hidden', v !== 'metro');
@@ -1558,8 +1636,9 @@ function showAnaAsk() {
 function closeAnaPopup() { $('analyze-popup').classList.add('hidden'); }
 $('ana-close-btn').onclick = closeAnaPopup;
 
-async function doAnalyze() {
-  const f = $('file').files[0];
+// fileArg/nameArg 省略時は #file のアップロード画像。審査用サンプルは fetch した File を渡す
+async function doAnalyze(fileArg, nameArg) {
+  const f = fileArg || $('file').files[0];
   if (!f) return;
   showAnaPopup('小節を検出中…');
   startAnaTimer();
@@ -1570,7 +1649,7 @@ async function doAnalyze() {
     const res = await fetch('/process/detect', { method: 'POST', body: fd });
     if (!res.ok) throw new Error((await res.json()).error || res.statusText);
     const first = await res.json();
-    currentJob = first.job; currentPiece = null; currentPieceName = autoName();
+    currentJob = first.job; currentPiece = null; currentPieceName = nameArg || autoName();
     startInfo = first.start || null;
 
     // 読めなかった項目だけ人に聞く。答えは後段のプロンプトに渡るので、AIは推測せずに済む
@@ -1603,7 +1682,7 @@ async function doAnalyze() {
     $('ana-close-btn').classList.remove('hidden');
   }
 }
-$('analyze').onclick = doAnalyze;
+$('analyze').onclick = () => doAnalyze();  // 引数なしで(クリックEventをfileArgに渡さない)
 
 $('sample').onclick = async () => {
   $('up-status').textContent = '読み込み中…';
@@ -1617,6 +1696,39 @@ $('sample').onclick = async () => {
     initFromData('dance_movement.jpeg', ov, mt, bt);
   } catch (e) { $('up-status').textContent = '読み込み失敗: ' + e.message; }
 };
+
+// ---- 審査用サンプル(審査員が用意の楽譜写真を選んで実解析を試す) ----
+// NOTE: 画像ファイルは web/judge/ に置く。ここの file 名と一致させること(name は審査員に見える表示名)
+// file=解析に渡すフル解像度(小さい文字を潰さないため落とさない) / thumb=一覧表示用の軽い画像
+const JUDGE_SAMPLES = [
+  { file: 'judge/candide.jpeg', thumb: 'judge/thumb/candide.jpg', name: 'Candide' },
+  { file: 'judge/dance_movement1.jpeg', thumb: 'judge/thumb/dance_movement1.jpg', name: 'Dance Movement I' },
+  { file: 'judge/dance_movement2.jpeg', thumb: 'judge/thumb/dance_movement2.jpg', name: 'Dance Movement II' },
+];
+function openJudge() {
+  const grid = $('judge-list');
+  grid.innerHTML = JUDGE_SAMPLES.map((s, i) =>
+    `<div class="piece-card" data-ji="${i}">` +
+    `<img src="${s.thumb || s.file}" alt="${s.name}" loading="lazy" onerror="this.style.visibility='hidden'">` +
+    `<span class="nm">${s.name}</span></div>`).join('');
+  grid.querySelectorAll('.piece-card').forEach(c =>
+    c.onclick = () => runJudgeSample(JUDGE_SAMPLES[+c.dataset.ji]));
+  $('judge-popup').classList.remove('hidden');
+}
+function closeJudge() { $('judge-popup').classList.add('hidden'); }
+// 選んだ写真を fetch して File 化し、通常のアップロードと同じ解析フローに流す
+async function runJudgeSample(s) {
+  closeJudge();
+  $('up-status').textContent = '読み込み中…';
+  try {
+    const res = await fetch(s.file);
+    if (!res.ok) throw new Error('画像が見つかりません(' + s.file + ')');
+    const blob = await res.blob();
+    const file = new File([blob], s.file.split('/').pop() || 'judge.jpg',
+      { type: blob.type || 'image/jpeg' });
+    await doAnalyze(file, s.name);
+  } catch (e) { $('up-status').textContent = '読み込み失敗: ' + e.message; }
+}
 
 // 保存済みジョブ(補正込み)を URL の ?job= から復元
 async function loadFromJob(job) {
@@ -1637,10 +1749,18 @@ async function loadLibrary() {
     $('library').innerHTML = pieces.length
       ? pieces.map(p =>
           `<div class="piece-card" data-pid="${p.id}">` +
+          `<button class="pc-del" data-del="${p.id}" title="削除" aria-label="削除">×</button>` +
           `<img src="${p.thumb || ''}"><span class="nm">${p.name}</span>` +
           `<small>${p.pageCount}ページ</small></div>`).join('')
       : '<div class="empty">まだ保存した曲はありません</div>';
     $('library').querySelectorAll('.piece-card').forEach(c => c.onclick = () => loadPiece(c.dataset.pid));
+    // 各カードの×で削除(カードを開くクリックに拾わせないよう stopPropagation)
+    $('library').querySelectorAll('.pc-del').forEach(b => b.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm('この曲を練習ライブラリから削除しますか？')) return;
+      try { await fetch('/piece/' + b.dataset.del, { method: 'DELETE' }); } catch (_) {}
+      loadLibrary();
+    });
   } catch (e) { /* 一覧取得失敗は無視 */ }
 }
 
@@ -1663,6 +1783,14 @@ function pulsesAt(k) {
   const info = meter.measures.find(x => x.index === overlay.measures[k].index);
   return info ? measurePulses(info) : [1, 1, 1, 1];
 }
+// 前拍のパルス列。自動は開始小節の拍そのまま。手動指定時はその拍パターンを count 拍ぶんに伸縮
+function preClickPulses(k, count) {
+  const base = pulsesAt(k);
+  if (!count || count === base.length) return base;
+  const out = [];
+  for (let i = 0; i < count; i++) out.push(base[i % base.length]);
+  return out;
+}
 // 単体(練習)を小節k(本編=その小節の頭)から再生開始。前拍は「その小節と同じ拍」を手前に鳴らす
 function startSolo(k) {
   const time = measureStarts[k] ?? 0;
@@ -1671,10 +1799,11 @@ function startSolo(k) {
   playFrom = time;                         // ここから本編(小節ハイライト開始)
   preClicks = [];
   if ($('pre').checked) {
-    const pulses = pulsesAt(k);            // 開始小節と同じ拍(数・刻み)を前拍に
+    const count = Math.max(1, parseInt($('preN').value) || pulsesAt(k).length);
+    const pulses = preClickPulses(k, count);  // 自動=開始小節の拍、手動=指定拍数に伸縮
     let off = -pulses.reduce((a, b) => a + b, 0);
     pulses.forEach(dur => { preClicks.push(time + off * spb); off += dur; });
-    $('preN').value = pulses.length;       // 表示を合わせる
+    if (!preManual) $('preN').value = pulses.length;  // 自動時のみ表示を開始小節に合わせる
   }
   nextPre = 0;
   playing = true;
@@ -1695,6 +1824,7 @@ function clearCue() { document.querySelectorAll('polygon.cue').forEach(p => p.cl
 // 開始小節を選ぶ(緑表示)。まだ再生はしない
 function setCue(idx) {
   cueIndex = overlay.measures.findIndex(m => m.index === idx);
+  preManual = false;  // 開始小節を変えたら前拍は自動(開始小節の拍数)に戻す
   $('preN').value = pulsesAt(cueIndex).length;  // 前拍の拍数を開始小節に合わせて表示
   clearCue();
   const p = $('ov').querySelector(`polygon[data-i="${idx}"]`);
@@ -1763,11 +1893,22 @@ function updatePlayUI() {
 
 $('play').onclick = togglePlay;
 $('big-play').onclick = togglePlay;
-// 「前拍あり」切替で即時に表示へ反映(ONなら開始小節の拍数、OFFなら前振り表示を隠す)
+// 「前拍あり」切替で即時に表示へ反映(ONで自動なら開始小節の拍数、OFFはステッパーを無効化)
 $('pre').onchange = () => {
-  $('preN').value = $('pre').checked ? pulsesAt(cueIndex).length : 0;
+  const on = $('pre').checked;
+  if (on && !preManual) $('preN').value = pulsesAt(cueIndex).length;
+  $('pre-stepper').classList.toggle('off', !on);  // OFFは薄く・操作不可(拍数は保持)
   updatePlayUI();
 };
+// 前拍の拍数を手動で変更(1〜16)。手動にすると開始小節へ自動追従しなくなる
+function setPreN(n) {
+  n = Math.max(1, Math.min(16, n | 0));
+  $('preN').value = n;
+  updatePlayUI();
+}
+$('preDec').onclick = () => { preManual = true; setPreN((parseInt($('preN').value) || 1) - 1); };
+$('preInc').onclick = () => { preManual = true; setPreN((parseInt($('preN').value) || 1) + 1); };
+$('preN').onchange = () => { preManual = true; setPreN(parseInt($('preN').value) || 1); };
 const restart = () => { cueIndex = 0; pausedAt = null; playFromOrdinal(0); };
 $('restart').onclick = restart;
 $('big-restart').onclick = restart;
@@ -1905,17 +2046,22 @@ $('settings-btn').onclick = () => $('settings-popup').classList.remove('hidden')
 $('settings-close').onclick = () => $('settings-popup').classList.add('hidden');
 $('settings-popup').onclick = (e) => { if (e.target.id === 'settings-popup') $('settings-popup').classList.add('hidden'); };
 // ハンバーガーメニュー
-$('menu-btn').onclick = (e) => { e.stopPropagation(); $('ham-menu').classList.toggle('hidden'); };
-document.addEventListener('click', () => $('ham-menu').classList.add('hidden'));
+$('menu-btn').onclick = (e) => { e.stopPropagation(); $('ham-menu').classList.toggle('open'); };
+document.addEventListener('click', () => $('ham-menu').classList.remove('open'));
 $('ham-review').onclick = () => { enterReview(); };
-$('ham-back').onclick = () => {
+// TOP(アップロード画面)へ戻す。「別の写真」とタイトルロゴのクリックで共用
+function goTop() {
   playing = false;
   document.body.classList.remove('review-mode');
   currentJob = null; currentPiece = null; currentPieceName = '';
   history.replaceState(null, '', location.pathname);
   $('app').classList.add('hidden'); $('upload').classList.remove('hidden');
   $('up-status').textContent = '';
-};
+}
+$('ham-back').onclick = goTop;
+// タイトル(PCのロゴ/文字)クリックで TOP へ
+$('app-logo').onclick = goTop;
+$('app-title').onclick = goTop;
 
 // 調節: ツール切替 / モード切替 / 戻す
 ['edit', 'split', 'merge'].forEach(t => $('tool-' + t).onclick = () => setReviewTool(t));
@@ -1938,6 +2084,10 @@ function closeLibrary() { $('library-popup').classList.add('hidden'); }
 $('prac-btn').onclick = openLibrary;
 $('lib-close-btn').onclick = closeLibrary;
 $('library-popup').onclick = (e) => { if (e.target.id === 'library-popup') closeLibrary(); };  // 外側タップで閉じる
+// 審査用サンプル → 写真選択ポップアップを開く
+$('judge-btn').onclick = openJudge;
+$('judge-close-btn').onclick = closeJudge;
+$('judge-popup').onclick = (e) => { if (e.target.id === 'judge-popup') closeJudge(); };  // 外側タップで閉じる
 
 // 起動時: テーマ適用 + ライブラリ(保存した曲)を表示。URL に ?piece / ?job があればプレイヤーへ復元
 applyTheme();
