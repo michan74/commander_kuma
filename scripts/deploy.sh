@@ -33,7 +33,7 @@ gcloud run deploy "$SERVICE" \
   --add-volume="name=kuma-data,type=cloud-storage,bucket=$BUCKET" \
   --add-volume-mount="volume=kuma-data,mount-path=/work" \
   --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,GEMINI_MODEL=$GEMINI_MODEL" \
-  --allow-unauthenticated --memory=2Gi --timeout=300
+  --allow-unauthenticated --memory=4Gi --cpu-boost --timeout=900
 
 echo "==> URL:"
 gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)'
